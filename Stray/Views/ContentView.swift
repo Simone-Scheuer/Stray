@@ -70,8 +70,6 @@ struct ContentView: View {
                         Spacer()
                     }
                     .padding(.bottom, 16)
-
-                    Spacer()
                 } else {
                     Spacer()
                 }
