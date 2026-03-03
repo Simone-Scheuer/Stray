@@ -69,8 +69,13 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             context.setBlendMode(.clear)
             context.fill(cellRect)
 
-            // Apply heat color tint
-            if let tint = heatColor(for: count) {
+            // Special tile color overrides heat gradient
+            if let special = gridEngine.specialTile(for: cell),
+               let specialColor = UIColor(hex: special.colorHex) {
+                context.setBlendMode(.normal)
+                context.setFillColor(specialColor.withAlphaComponent(Constants.specialTileAlpha).cgColor)
+                context.fill(cellRect)
+            } else if let tint = heatColor(for: count) {
                 context.setBlendMode(.normal)
                 context.setFillColor(tint.cgColor)
                 context.fill(cellRect)

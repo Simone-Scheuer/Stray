@@ -20,7 +20,7 @@ struct StrayApp: App {
         let container: ModelContainer
         do {
             container = try ModelContainer(
-                for: RevealedCell.self, StraySession.self, DailySummary.self,
+                for: RevealedCell.self, StraySession.self, DailySummary.self, SpecialTile.self,
                 configurations: config
             )
         } catch {
@@ -34,8 +34,10 @@ struct StrayApp: App {
         let location = LocationService()
 
         persistence.deduplicateCells()
+        persistence.deduplicateSpecialTiles()
         persistence.fixupDailySummaryActiveFlags()
         grid.loadCells(from: context)
+        grid.loadSpecialTiles(from: context)
 
         let sessionVM = StraySessionViewModel(
             gridEngine: grid,
@@ -154,7 +156,9 @@ struct StrayApp: App {
         let context = ModelContext(modelContainer)
         let dedupService = PersistenceService(context: context)
         dedupService.deduplicateCells()
+        dedupService.deduplicateSpecialTiles()
         dedupService.fixupDailySummaryActiveFlags()
         gridEngine.loadCells(from: context)
+        gridEngine.loadSpecialTiles(from: context)
     }
 }

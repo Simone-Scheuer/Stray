@@ -13,6 +13,7 @@ enum RevealResult: Equatable {
 final class GridEngine {
     private(set) var revealedCells: [GridCell: Int] = [:]
     private(set) var lastVisitTimes: [GridCell: Date] = [:]
+    private(set) var specialTiles: [GridCell: SpecialTile] = [:]
     private var spatialIndex: [SpatialBucket: [GridCell]] = [:]
 
     /// Incremented only when tiles actually need re-rendering (throttled).
@@ -131,6 +132,28 @@ final class GridEngine {
             lastVisitTimes[cell] = record.lastVisitedAt
             addToSpatialIndex(cell)
         }
+        renderGeneration += 1
+    }
+
+    // MARK: - Special Tiles
+
+    func loadSpecialTiles(from context: ModelContext) {
+        let descriptor = FetchDescriptor<SpecialTile>()
+        guard let tiles = try? context.fetch(descriptor) else { return }
+        specialTiles.removeAll(keepingCapacity: true)
+        for tile in tiles {
+            let cell = GridCell(latIndex: tile.latIndex, lngIndex: tile.lngIndex)
+            specialTiles[cell] = tile
+        }
+        renderGeneration += 1
+    }
+
+    func specialTile(for cell: GridCell) -> SpecialTile? {
+        specialTiles[cell]
+    }
+
+    func setSpecialTile(_ tile: SpecialTile?, for cell: GridCell) {
+        specialTiles[cell] = tile
         renderGeneration += 1
     }
 

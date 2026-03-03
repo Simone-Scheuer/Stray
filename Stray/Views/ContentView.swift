@@ -83,7 +83,7 @@ struct ContentView: View {
         }
         .sheet(item: $inspectedCell) { cell in
             CellInspectorView(cell: cell)
-                .presentationDetents([.height(220)])
+                .presentationDetents([.height(220), .medium])
                 .presentationDragIndicator(.visible)
         }
         .overlay(alignment: .bottom) {

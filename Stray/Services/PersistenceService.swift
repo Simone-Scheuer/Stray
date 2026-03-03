@@ -206,6 +206,98 @@ final class PersistenceService {
         }
     }
 
+    // MARK: - Special Tiles
+
+    func saveSpecialTile(for cell: GridCell, label: String, icon: String, colorHex: String) {
+        let key = cell.key
+        let descriptor = FetchDescriptor<SpecialTile>(
+            predicate: #Predicate<SpecialTile> { $0.cellKey == key }
+        )
+
+        do {
+            if let existing = try context.fetch(descriptor).first {
+                existing.label = label
+                existing.icon = icon
+                existing.colorHex = colorHex
+            } else {
+                let tile = SpecialTile(
+                    cellKey: key,
+                    latIndex: cell.latIndex,
+                    lngIndex: cell.lngIndex,
+                    label: label,
+                    icon: icon,
+                    colorHex: colorHex
+                )
+                context.insert(tile)
+            }
+        } catch {
+            Self.logger.error("Failed to fetch special tile \(key, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            let tile = SpecialTile(
+                cellKey: key,
+                latIndex: cell.latIndex,
+                lngIndex: cell.lngIndex,
+                label: label,
+                icon: icon,
+                colorHex: colorHex
+            )
+            context.insert(tile)
+        }
+        save()
+    }
+
+    func deleteSpecialTile(for cell: GridCell) {
+        let key = cell.key
+        let descriptor = FetchDescriptor<SpecialTile>(
+            predicate: #Predicate<SpecialTile> { $0.cellKey == key }
+        )
+        do {
+            for tile in try context.fetch(descriptor) {
+                context.delete(tile)
+            }
+        } catch {
+            Self.logger.error("Failed to delete special tile \(key, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
+        save()
+    }
+
+    func fetchSpecialTile(for cell: GridCell) -> SpecialTile? {
+        let key = cell.key
+        let descriptor = FetchDescriptor<SpecialTile>(
+            predicate: #Predicate<SpecialTile> { $0.cellKey == key }
+        )
+        do {
+            return try context.fetch(descriptor).first
+        } catch {
+            Self.logger.error("Failed to fetch special tile \(key, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    func fetchAllSpecialTiles() -> [SpecialTile] {
+        let descriptor = FetchDescriptor<SpecialTile>()
+        do {
+            return try context.fetch(descriptor)
+        } catch {
+            Self.logger.error("Failed to fetch all special tiles: \(error.localizedDescription, privacy: .public)")
+            return []
+        }
+    }
+
+    func deduplicateSpecialTiles() {
+        let allTiles = fetchAllSpecialTiles()
+        var grouped: [String: [SpecialTile]] = [:]
+        for tile in allTiles {
+            grouped[tile.cellKey, default: []].append(tile)
+        }
+        for (_, tiles) in grouped where tiles.count > 1 {
+            let sorted = tiles.sorted { $0.createdAt < $1.createdAt }
+            for duplicate in sorted.dropFirst() {
+                context.delete(duplicate)
+            }
+        }
+        save()
+    }
+
     func save() {
         do {
             try context.save()

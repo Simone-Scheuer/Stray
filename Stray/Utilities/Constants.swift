@@ -20,6 +20,14 @@ enum Constants {
     static let heatWarmAmber = UIColor(red: 0.9, green: 0.6, blue: 0.2, alpha: 0.40)      // 10-29 visits
     static let heatBrightGlow = UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 0.50)    // 30+ visits
 
+    // Special tile presets
+    static let specialTilePresets: [(label: String, icon: String, colorHex: String)] = [
+        ("Home", "house.fill", "#4CAF50"),
+        ("Work", "briefcase.fill", "#7B68EE"),
+        ("Favorite", "star.fill", "#FFD700"),
+    ]
+    static let specialTileAlpha: CGFloat = 0.55
+
     static let passiveAccuracyThreshold: CLLocationAccuracy = 100.0
     static let activeAccuracyThreshold: CLLocationAccuracy = 50.0
     static let lowPowerAccuracyThreshold: CLLocationAccuracy = 150.0

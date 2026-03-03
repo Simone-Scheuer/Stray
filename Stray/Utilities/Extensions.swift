@@ -1,5 +1,6 @@
 import CoreLocation
 import SwiftUI
+import UIKit
 
 // MARK: - Environment Keys for Service Injection
 
@@ -62,6 +63,24 @@ func formatDistance(_ meters: Double) -> String {
         let miles = meters / 1609.34
         if miles < 0.1 { return "0 mi" }
         return String(format: "%.1f mi", miles)
+    }
+}
+
+// MARK: - UIColor Hex Parsing
+
+extension UIColor {
+    convenience init?(hex: String) {
+        var hexString = hex.trimmingCharacters(in: .whitespacesAndNewlines)
+        if hexString.hasPrefix("#") { hexString.removeFirst() }
+        guard hexString.count == 6 else { return nil }
+        var rgb: UInt64 = 0
+        guard Scanner(string: hexString).scanHexInt64(&rgb) else { return nil }
+        self.init(
+            red: CGFloat((rgb >> 16) & 0xFF) / 255.0,
+            green: CGFloat((rgb >> 8) & 0xFF) / 255.0,
+            blue: CGFloat(rgb & 0xFF) / 255.0,
+            alpha: 1.0
+        )
     }
 }
 
