@@ -1,0 +1,30 @@
+name: Stray
+options:
+  bundleIdPrefix: com.stray
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    GENERATE_INFOPLIST_FILE: "YES"
+
+targets:
+  Stray:
+    type: application
+    platform: iOS
+    deploymentTarget:
+      iOS: "17.0"
+    sources:
+      - Stray
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.stray.app
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: "Stray uses your location to reveal the parts of your world you've explored."
+        INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription: "Always-on location lets Stray track your exploration even when the app is in the background, so you never miss a step."
+        INFOPLIST_KEY_UIBackgroundModes: "location remote-notification"
+        INFOPLIST_KEY_UILaunchScreen_Generation: "YES"
+        SWIFT_VERSION: "5.9"
+    entitlements:
+      path: Stray/Stray.entitlements
