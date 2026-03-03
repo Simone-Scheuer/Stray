@@ -14,11 +14,11 @@ enum Constants {
     static let visitCooldownSeconds: TimeInterval = 1800.0
 
     // Heat gradient colors — smooth ramp from cool to warm
-    static let heatCoolBlue = UIColor(red: 0.3, green: 0.45, blue: 0.85, alpha: 0.22)     // 1 visit
-    static let heatLightBlue = UIColor(red: 0.35, green: 0.5, blue: 0.75, alpha: 0.15)    // 2-4 visits
-    static let heatNeutral = UIColor(red: 0.55, green: 0.5, blue: 0.45, alpha: 0.10)      // 5-9 visits
-    static let heatWarmAmber = UIColor(red: 0.9, green: 0.6, blue: 0.2, alpha: 0.18)      // 10-29 visits
-    static let heatBrightGlow = UIColor(red: 1.0, green: 0.8, blue: 0.3, alpha: 0.25)     // 30+ visits
+    static let heatCoolBlue = UIColor(red: 0.3, green: 0.5, blue: 0.9, alpha: 0.45)       // 1 visit
+    static let heatLightBlue = UIColor(red: 0.35, green: 0.55, blue: 0.8, alpha: 0.38)    // 2-4 visits
+    static let heatNeutral = UIColor(red: 0.55, green: 0.5, blue: 0.45, alpha: 0.30)      // 5-9 visits
+    static let heatWarmAmber = UIColor(red: 0.9, green: 0.6, blue: 0.2, alpha: 0.40)      // 10-29 visits
+    static let heatBrightGlow = UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 0.50)    // 30+ visits
 
     static let passiveAccuracyThreshold: CLLocationAccuracy = 100.0
     static let activeAccuracyThreshold: CLLocationAccuracy = 50.0

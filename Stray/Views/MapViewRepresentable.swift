@@ -16,6 +16,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         mapView.showsUserLocation = true
         mapView.userTrackingMode = .follow
         mapView.isPitchEnabled = false
+        mapView.showsCompass = false
 
         let config = MKStandardMapConfiguration(elevationStyle: .flat)
         if !showMapLabels {
