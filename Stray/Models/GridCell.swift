@@ -8,14 +8,16 @@ struct GridCell: Hashable, Codable, Sendable, Identifiable {
     // ~50m in latitude degrees (1 degree latitude ≈ 111,320m everywhere)
     static let latStep: Double = 50.0 / 111_320.0
 
-    // ~50m in longitude degrees (shrinks toward the poles)
+    // ~50m in longitude degrees, snapped to 1° latitude bands so columns align
     static func lngStep(atLatitude latitude: Double) -> Double {
-        50.0 / (111_320.0 * cos(latitude * .pi / 180.0))
+        let bandCenter = floor(latitude) + 0.5
+        return 50.0 / (111_320.0 * cos(bandCenter * .pi / 180.0))
     }
 
     static func from(latitude: Double, longitude: Double) -> GridCell {
         let latIdx = Int(floor(latitude / latStep))
-        let lngStp = lngStep(atLatitude: latitude)
+        let cellLat = Double(latIdx) * latStep
+        let lngStp = lngStep(atLatitude: cellLat)
         let lngIdx = Int(floor(longitude / lngStp))
         return GridCell(latIndex: latIdx, lngIndex: lngIdx)
     }
