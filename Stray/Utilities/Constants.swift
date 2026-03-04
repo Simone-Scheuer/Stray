@@ -33,6 +33,8 @@ enum Constants {
     static let lowPowerAccuracyThreshold: CLLocationAccuracy = 150.0
     static let averageStrideLengthMeters: Double = 0.7
     static let minimumDistanceBetweenUpdatesMeters: Double = 5.0
+    // Reject GPS deltas above this — implies a position jump, not actual movement
+    static let maxDistanceDeltaMeters: Double = 200.0
     static let geocodeRateLimitPerMinute: Int = 40
     static let hasCompletedOnboardingKey = "hasCompletedOnboarding"
     static let hasPromptedAlwaysLocationKey = "hasPromptedAlwaysLocation"

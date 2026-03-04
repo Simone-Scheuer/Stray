@@ -147,7 +147,8 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         var incrementalDistance: Double = 0
         if let last = lastValidLocation {
             let dist = last.distance(from: location)
-            if dist >= Constants.minimumDistanceBetweenUpdatesMeters {
+            if dist >= Constants.minimumDistanceBetweenUpdatesMeters
+                && dist <= Constants.maxDistanceDeltaMeters {
                 incrementalDistance = dist
                 cumulativeDistance += dist
                 estimatedSteps = Int(cumulativeDistance / Constants.averageStrideLengthMeters)
