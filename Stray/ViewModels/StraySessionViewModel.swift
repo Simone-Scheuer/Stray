@@ -11,6 +11,7 @@ final class StraySessionViewModel {
     private(set) var compassBearing: Double = 0
     private(set) var hasCompassTarget: Bool = false
     private(set) var noTargetMessage: String?
+    private(set) var targetsReachedInSession: Int = 0
 
     private static let noTargetMessages = [
         "The familiar stretches in every direction",
@@ -45,6 +46,7 @@ final class StraySessionViewModel {
         sessionStartTime = Date()
         cellsRevealedInSession = 0
         distanceInSession = 0
+        targetsReachedInSession = 0
         noTargetMessage = nil
 
         locationService.switchMode(active: true)
@@ -57,6 +59,7 @@ final class StraySessionViewModel {
     func endSession() {
         guard isSessionActive else { return }
         isSessionActive = false
+        gridEngine.setCompassTarget(nil)
         locationService.switchMode(active: false)
 
         if let start = sessionStartTime {
@@ -84,6 +87,11 @@ final class StraySessionViewModel {
         guard isSessionActive else { return }
         cellsRevealedInSession += 1
         if let location = locationService.currentLocation {
+            // Check if the revealed cell was the beacon target before picking the next one
+            let revealedCell = GridCell.from(latitude: location.latitude, longitude: location.longitude)
+            if let target = gridEngine.compassTarget, target == revealedCell {
+                targetsReachedInSession += 1
+            }
             updateCompass(from: location)
         }
     }
@@ -93,6 +101,8 @@ final class StraySessionViewModel {
         let hadTarget = hasCompassTarget
         hasCompassTarget = result.hasTarget
         noTargetMessage = result.hasTarget ? nil : Self.noTargetMessages.randomElement()!
+
+        gridEngine.setCompassTarget(result.hasTarget ? result.targetCell : nil)
 
         if result.hasTarget && !hadTarget {
             UISelectionFeedbackGenerator().selectionChanged()

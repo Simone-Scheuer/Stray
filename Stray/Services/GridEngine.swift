@@ -15,6 +15,7 @@ final class GridEngine {
     private(set) var lastVisitTimes: [GridCell: Date] = [:]
     private(set) var specialTiles: [GridCell: SpecialTile] = [:]
     private(set) var timelineCells: [GridCell: Int]? = nil
+    private(set) var compassTarget: GridCell? = nil
     private var spatialIndex: [SpatialBucket: [GridCell]] = [:]
 
     /// Incremented only when tiles actually need re-rendering (throttled).
@@ -156,6 +157,12 @@ final class GridEngine {
 
     func exitTimeline() {
         timelineCells = nil
+        compassTarget = nil
+        renderGeneration += 1
+    }
+
+    func setCompassTarget(_ cell: GridCell?) {
+        compassTarget = cell
         renderGeneration += 1
     }
 

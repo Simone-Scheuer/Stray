@@ -194,6 +194,10 @@ struct ContentView: View {
                 Label(formattedTime(vm.elapsedSeconds), systemImage: "clock")
                 Label("\(vm.cellsRevealedInSession)", systemImage: "square.grid.2x2")
                 Label(formattedDistance(vm.distanceInSession), systemImage: "figure.walk")
+                if vm.targetsReachedInSession > 0 {
+                    Label("\(vm.targetsReachedInSession)", systemImage: "mappin.circle.fill")
+                        .foregroundStyle(.red.opacity(0.9))
+                }
             }
             .font(.caption.monospacedDigit())
             .foregroundStyle(.white)
@@ -201,7 +205,7 @@ struct ContentView: View {
             .padding(.vertical, 10)
             .background(.black.opacity(0.6), in: Capsule())
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Session: \(formattedTime(vm.elapsedSeconds)) elapsed, \(vm.cellsRevealedInSession) cells revealed, \(formattedDistance(vm.distanceInSession)) walked")
+            .accessibilityLabel("Session: \(formattedTime(vm.elapsedSeconds)) elapsed, \(vm.cellsRevealedInSession) cells revealed, \(formattedDistance(vm.distanceInSession)) walked, \(vm.targetsReachedInSession) beacons reached")
         }
     }
 

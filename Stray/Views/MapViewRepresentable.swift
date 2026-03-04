@@ -1,6 +1,11 @@
 import SwiftUI
 import MapKit
 
+final class CompassTargetAnnotation: NSObject, MKAnnotation {
+    dynamic var coordinate: CLLocationCoordinate2D
+    init(coordinate: CLLocationCoordinate2D) { self.coordinate = coordinate }
+}
+
 struct MapViewRepresentable: UIViewRepresentable {
     let gridEngine: GridEngine
     var showMapLabels: Bool = false
@@ -46,6 +51,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         if current != context.coordinator.lastRenderGeneration {
             context.coordinator.lastRenderGeneration = current
             context.coordinator.fogRenderer?.setNeedsDisplay()
+            context.coordinator.syncCompassTarget(on: uiView, gridEngine: gridEngine)
         }
 
         if showMapLabels != context.coordinator.lastShowMapLabels {
@@ -66,6 +72,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         var lastRenderGeneration: Int = 0
         var lastShowMapLabels: Bool = false
         var onCellTapped: ((GridCell) -> Void)?
+        var compassTargetAnnotation: CompassTargetAnnotation?
 
         init(gridEngine: GridEngine, onCellTapped: ((GridCell) -> Void)?) {
             self.gridEngine = gridEngine
@@ -81,7 +88,47 @@ struct MapViewRepresentable: UIViewRepresentable {
             return MKOverlayRenderer(overlay: overlay)
         }
 
+        func syncCompassTarget(on mapView: MKMapView, gridEngine: GridEngine) {
+            if let target = gridEngine.compassTarget {
+                let coord = target.centerCoordinate
+                if let existing = compassTargetAnnotation {
+                    existing.coordinate = coord
+                } else {
+                    let ann = CompassTargetAnnotation(coordinate: coord)
+                    compassTargetAnnotation = ann
+                    mapView.addAnnotation(ann)
+                }
+            } else if let existing = compassTargetAnnotation {
+                mapView.removeAnnotation(existing)
+                compassTargetAnnotation = nil
+            }
+        }
+
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            if annotation is CompassTargetAnnotation {
+                let id = "compassTarget"
+                let view = mapView.dequeueReusableAnnotationView(withIdentifier: id)
+                    ?? MKAnnotationView(annotation: annotation, reuseIdentifier: id)
+                view.annotation = annotation
+                view.canShowCallout = false
+                // Clear any recycled subviews
+                view.subviews.forEach { $0.removeFromSuperview() }
+                let size: CGFloat = 18
+                let beacon = UIView(frame: CGRect(x: 0, y: 0, width: size, height: size))
+                beacon.backgroundColor = UIColor.systemRed.withAlphaComponent(0.85)
+                beacon.layer.cornerRadius = size / 2
+                beacon.layer.borderWidth = 2
+                beacon.layer.borderColor = UIColor.white.cgColor
+                beacon.layer.shadowColor = UIColor.systemRed.cgColor
+                beacon.layer.shadowRadius = 4
+                beacon.layer.shadowOpacity = 0.8
+                beacon.layer.shadowOffset = .zero
+                view.addSubview(beacon)
+                view.frame = beacon.frame
+                view.centerOffset = .zero
+                return view
+            }
+
             guard annotation is MKUserLocation else { return nil }
             let id = "userDot"
             let view = mapView.dequeueReusableAnnotationView(withIdentifier: id)

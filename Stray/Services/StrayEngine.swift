@@ -98,16 +98,31 @@ final class StrayEngine {
         return center.bearing(to: centroid)
     }
 
-    /// Full calculation: returns bearing and whether a target was found
-    func calculateBearing(from center: CLLocationCoordinate2D) -> (bearing: Double, hasTarget: Bool) {
+    /// Full calculation: returns bearing toward a specific target cell and whether a target was found
+    func calculateBearing(from center: CLLocationCoordinate2D)
+        -> (bearing: Double, hasTarget: Bool, targetCell: GridCell?) {
         let scored = scoredCellsNearby(center: center, radius: Constants.searchRadiusMeters)
-        guard !scored.isEmpty else { return (0, false) }
+        guard !scored.isEmpty else { return (0, false, nil) }
 
         let clusters = findClusters(in: scored)
-        guard let bestCluster = clusters.first else { return (0, false) }
+        guard let bestCluster = clusters.first else { return (0, false, nil) }
 
-        let bearing = bearingToCluster(from: center, cluster: bestCluster)
-        return (bearing, true)
+        // Pick the cell in the best cluster closest to the user — entry point into unexplored territory
+        let userLoc = CLLocation(latitude: center.latitude, longitude: center.longitude)
+        let targetCell = bestCluster.min(by: { a, b in
+            let ac = a.cell.centerCoordinate
+            let bc = b.cell.centerCoordinate
+            return CLLocation(latitude: ac.latitude, longitude: ac.longitude).distance(from: userLoc)
+                 < CLLocation(latitude: bc.latitude, longitude: bc.longitude).distance(from: userLoc)
+        })?.cell
+
+        let bearing: Double
+        if let target = targetCell {
+            bearing = center.bearing(to: target.centerCoordinate)
+        } else {
+            bearing = bearingToCluster(from: center, cluster: bestCluster)
+        }
+        return (bearing, true, targetCell)
     }
 
     /// Unvisited cells get full weight, rarely visited get partial, frequently visited get none
