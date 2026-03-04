@@ -107,14 +107,19 @@ final class StrayEngine {
         let clusters = findClusters(in: scored)
         guard let bestCluster = clusters.first else { return (0, false, nil) }
 
-        // Pick the cell in the best cluster closest to the user — entry point into unexplored territory
+        // Pick the nearest truly undiscovered (0-visit) cell in the cluster.
+        // Fall back to the nearest low-visit cell only if no unvisited cells exist.
         let userLoc = CLLocation(latitude: center.latitude, longitude: center.longitude)
-        let targetCell = bestCluster.min(by: { a, b in
-            let ac = a.cell.centerCoordinate
-            let bc = b.cell.centerCoordinate
-            return CLLocation(latitude: ac.latitude, longitude: ac.longitude).distance(from: userLoc)
-                 < CLLocation(latitude: bc.latitude, longitude: bc.longitude).distance(from: userLoc)
-        })?.cell
+        func nearest(in pool: [ScoredCell]) -> GridCell? {
+            pool.min(by: { a, b in
+                let ac = a.cell.centerCoordinate
+                let bc = b.cell.centerCoordinate
+                return CLLocation(latitude: ac.latitude, longitude: ac.longitude).distance(from: userLoc)
+                     < CLLocation(latitude: bc.latitude, longitude: bc.longitude).distance(from: userLoc)
+            })?.cell
+        }
+        let unvisited = bestCluster.filter { gridEngine.visitCount(for: $0.cell) == 0 }
+        let targetCell = nearest(in: unvisited.isEmpty ? bestCluster : unvisited)
 
         let bearing: Double
         if let target = targetCell {
