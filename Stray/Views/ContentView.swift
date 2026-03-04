@@ -14,69 +14,96 @@ struct ContentView: View {
     @State private var showPersistenceError = false
     @State private var errorDismissTask: Task<Void, Never>?
 
+    @State private var showTimeline = false
+    @State private var timelineVM = TimelineViewModel()
+
     var body: some View {
         ZStack {
             MapViewRepresentable(
                 gridEngine: gridEngine,
                 showMapLabels: showMapLabels,
                 onCellTapped: { cell in
+                    guard !showTimeline else { return }
                     inspectedCell = cell
                 }
             )
             .ignoresSafeArea()
 
             VStack {
-                // Top-right action buttons
-                HStack {
-                    Spacer()
-                    HStack(spacing: 12) {
-                        if let vm = sessionViewModel {
-                            if vm.isSessionActive {
-                                iconButton(systemName: "figure.walk.arrival", tint: .red.opacity(0.7), label: "End exploring session") {
-                                    showEndSessionAlert = true
-                                }
-                            } else {
-                                iconButton(systemName: "figure.walk.departure", label: "Start exploring") {
-                                    UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-                                    vm.startSession()
+                if !showTimeline {
+                    // Top-right action buttons
+                    HStack {
+                        Spacer()
+                        HStack(spacing: 12) {
+                            if let vm = sessionViewModel {
+                                if vm.isSessionActive {
+                                    iconButton(systemName: "figure.walk.arrival", tint: .red.opacity(0.7), label: "End exploring session") {
+                                        showEndSessionAlert = true
+                                    }
+                                } else {
+                                    iconButton(systemName: "figure.walk.departure", label: "Start exploring") {
+                                        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                        vm.startSession()
+                                    }
                                 }
                             }
+                            iconButton(systemName: "clock.arrow.circlepath", label: "View timeline") {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                enterTimeline()
+                            }
+                            iconButton(systemName: "chart.bar", label: "View statistics") {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                showStats = true
+                            }
+                            iconButton(systemName: "gearshape", label: "Settings") {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                showSettings = true
+                            }
                         }
-                        iconButton(systemName: "chart.bar", label: "View statistics") {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            showStats = true
-                        }
-                        iconButton(systemName: "gearshape", label: "Settings") {
-                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                            showSettings = true
-                        }
+                        .padding(.trailing, 16)
+                        .padding(.top, 12)
                     }
-                    .padding(.trailing, 16)
-                    .padding(.top, 12)
-                }
 
-                if let vm = sessionViewModel, vm.isSessionActive {
-                    sessionHUD(vm: vm)
+                    if let vm = sessionViewModel, vm.isSessionActive {
+                        sessionHUD(vm: vm)
 
-                    Spacer()
+                        Spacer()
 
-                    HStack {
-                        StrayCompassView(
-                            bearing: vm.compassBearing,
-                            hasTarget: vm.hasCompassTarget,
-                            noTargetMessage: vm.noTargetMessage
-                        )
-                        .padding(.leading, 16)
+                        HStack {
+                            StrayCompassView(
+                                bearing: vm.compassBearing,
+                                hasTarget: vm.hasCompassTarget,
+                                noTargetMessage: vm.noTargetMessage
+                            )
+                            .padding(.leading, 16)
+                            Spacer()
+                        }
+                        .padding(.bottom, 16)
+                    } else {
                         Spacer()
                     }
-                    .padding(.bottom, 16)
                 } else {
                     Spacer()
                 }
             }
+
+            if showTimeline {
+                VStack {
+                    Spacer()
+                    TimelineOverlayView(timelineVM: timelineVM, onExit: exitTimeline)
+                        .environment(\.gridEngine, gridEngine)
+                        .environment(\.persistenceService, persistenceService)
+                }
+            }
         }
         .sheet(isPresented: $showStats) {
-            StatsView()
+            StatsView(onOpenTimeline: {
+                showStats = false
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(350))
+                    enterTimeline()
+                }
+            })
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()
@@ -87,7 +114,7 @@ struct ContentView: View {
                 .presentationDragIndicator(.visible)
         }
         .overlay(alignment: .bottom) {
-            if showPersistenceError {
+            if showPersistenceError && !showTimeline {
                 Text("Unable to save exploration data")
                     .font(.caption)
                     .foregroundStyle(.white.opacity(0.9))
@@ -128,6 +155,22 @@ struct ContentView: View {
             gridEngine.addTestCells()
             #endif
         }
+    }
+
+    // MARK: - Timeline
+
+    private func enterTimeline() {
+        guard let ps = persistenceService else { return }
+        timelineVM.load(persistence: ps)
+        if !timelineVM.activeDays.isEmpty {
+            timelineVM.applyDay(gridEngine: gridEngine, persistence: ps)
+        }
+        showTimeline = true
+    }
+
+    private func exitTimeline() {
+        timelineVM.exit(gridEngine: gridEngine)
+        showTimeline = false
     }
 
     // MARK: - Navigation Buttons

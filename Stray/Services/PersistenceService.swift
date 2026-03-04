@@ -194,6 +194,42 @@ final class PersistenceService {
         save()
     }
 
+    // MARK: - Timeline
+
+    /// Returns all cells first revealed on or before `date`, keyed by GridCell with their visit count.
+    func fetchCellsUpTo(date: Date) -> [GridCell: Int] {
+        let cutoff = Calendar.current.startOfDay(
+            for: Calendar.current.date(byAdding: .day, value: 1, to: date)!
+        )
+        let descriptor = FetchDescriptor<RevealedCell>(
+            predicate: #Predicate<RevealedCell> { $0.firstVisitedAt < cutoff }
+        )
+        var result: [GridCell: Int] = [:]
+        do {
+            for record in try context.fetch(descriptor) {
+                let cell = GridCell(latIndex: record.latIndex, lngIndex: record.lngIndex)
+                result[cell] = record.visitCount
+            }
+        } catch {
+            Self.logger.error("Failed to fetch cells for timeline: \(error.localizedDescription, privacy: .public)")
+        }
+        return result
+    }
+
+    /// Returns all days on which the user was active, sorted oldest-first.
+    func fetchActiveDays() -> [DailySummary] {
+        let descriptor = FetchDescriptor<DailySummary>(
+            predicate: #Predicate<DailySummary> { $0.isActiveDay == true },
+            sortBy: [SortDescriptor(\.dateString)]
+        )
+        do {
+            return try context.fetch(descriptor)
+        } catch {
+            Self.logger.error("Failed to fetch active days: \(error.localizedDescription, privacy: .public)")
+            return []
+        }
+    }
+
     func fetchCell(key: String) -> RevealedCell? {
         let descriptor = FetchDescriptor<RevealedCell>(
             predicate: #Predicate<RevealedCell> { $0.cellKey == key }

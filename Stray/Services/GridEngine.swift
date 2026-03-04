@@ -14,6 +14,7 @@ final class GridEngine {
     private(set) var revealedCells: [GridCell: Int] = [:]
     private(set) var lastVisitTimes: [GridCell: Date] = [:]
     private(set) var specialTiles: [GridCell: SpecialTile] = [:]
+    private(set) var timelineCells: [GridCell: Int]? = nil
     private var spatialIndex: [SpatialBucket: [GridCell]] = [:]
 
     /// Incremented only when tiles actually need re-rendering (throttled).
@@ -90,12 +91,23 @@ final class GridEngine {
         }
     }
 
-    /// Returns cells with visit counts within the given region. Uses spatial index for fast queries.
+    /// Returns cells with visit counts within the given region.
+    /// In timeline mode uses a linear scan (spatial index is built from live cells, not the snapshot).
+    /// In normal mode uses the spatial index for fast queries.
     func cellsWithCounts(in region: MKCoordinateRegion) -> [(GridCell, Int)] {
         let minLat = region.center.latitude - region.span.latitudeDelta / 2.0
         let maxLat = region.center.latitude + region.span.latitudeDelta / 2.0
         let minLng = region.center.longitude - region.span.longitudeDelta / 2.0
         let maxLng = region.center.longitude + region.span.longitudeDelta / 2.0
+
+        if let timeline = timelineCells {
+            return timeline.compactMap { (cell, count) in
+                let coord = cell.coordinate
+                guard coord.latitude >= minLat && coord.latitude <= maxLat
+                    && coord.longitude >= minLng && coord.longitude <= maxLng else { return nil }
+                return (cell, count)
+            }
+        }
 
         let minLatBucket = Int(floor(minLat))
         let maxLatBucket = Int(floor(maxLat))
@@ -132,6 +144,18 @@ final class GridEngine {
             lastVisitTimes[cell] = record.lastVisitedAt
             addToSpatialIndex(cell)
         }
+        renderGeneration += 1
+    }
+
+    // MARK: - Timeline Mode
+
+    func enterTimeline(cells: [GridCell: Int]) {
+        timelineCells = cells
+        renderGeneration += 1
+    }
+
+    func exitTimeline() {
+        timelineCells = nil
         renderGeneration += 1
     }
 

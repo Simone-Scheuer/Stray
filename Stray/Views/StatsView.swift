@@ -2,6 +2,8 @@ import SwiftUI
 import SwiftData
 
 struct StatsView: View {
+    var onOpenTimeline: (() -> Void)? = nil
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.statsViewModel) var statsViewModel
     @Environment(\.dismiss) private var dismiss
@@ -10,6 +12,7 @@ struct StatsView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 32) {
+                    timelineSection
                     todaySection
                     lifetimeSection
                     sessionsSection
@@ -31,6 +34,27 @@ struct StatsView: View {
                 statsViewModel.refresh(context: modelContext)
             }
         }
+    }
+
+    // MARK: - Timeline
+
+    private var timelineSection: some View {
+        Button {
+            onOpenTimeline?()
+        } label: {
+            HStack {
+                Label("Replay your journey", systemImage: "clock.arrow.circlepath")
+                    .font(.body)
+                    .foregroundStyle(.primary)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(16)
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+        }
+        .disabled(onOpenTimeline == nil)
     }
 
     // MARK: - Today
