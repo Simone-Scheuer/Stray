@@ -9,6 +9,7 @@ struct CellPhotosView: View {
     @State private var thumbnails: [String: UIImage] = [:]
     @State private var selectedImage: UIImage?
     @State private var selectedAsset: PHAsset?
+    @State private var selectedIndex: Int = 0
     @State private var showFullImage = false
     @State private var imageLoadFailed = false
     @State private var showShareSheet = false
@@ -53,14 +54,20 @@ struct CellPhotosView: View {
                     VStack(spacing: 0) {
                         // Top bar — share + close
                         HStack {
+                            // Photo counter
+                            if assets.count > 1 {
+                                Text("\(selectedIndex + 1) / \(assets.count)")
+                                    .font(.subheadline.weight(.medium))
+                                    .foregroundStyle(.white.opacity(0.6))
+                            }
                             Spacer()
-                            HStack(spacing: 16) {
+                            HStack(spacing: 20) {
                                 if selectedImage != nil {
                                     Button {
                                         showShareSheet = true
                                     } label: {
                                         Image(systemName: "square.and.arrow.up.circle.fill")
-                                            .font(.title2)
+                                            .font(.title)
                                             .symbolRenderingMode(.palette)
                                             .foregroundStyle(.white, .white.opacity(0.3))
                                     }
@@ -74,25 +81,35 @@ struct CellPhotosView: View {
                                     showShareSheet = false
                                 } label: {
                                     Image(systemName: "xmark.circle.fill")
-                                        .font(.title2)
+                                        .font(.title)
                                         .symbolRenderingMode(.palette)
                                         .foregroundStyle(.white, .white.opacity(0.3))
                                 }
                                 .accessibilityLabel("Close preview")
                             }
-                            .padding(.horizontal, 20)
-                            .padding(.top, 12)
                         }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 16)
 
                         Spacer()
 
-                        // Centered photo
+                        // Centered photo with swipe
                         if let image = selectedImage {
                             Image(uiImage: image)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .padding(.horizontal, 4)
+                                .gesture(
+                                    DragGesture(minimumDistance: 50)
+                                        .onEnded { value in
+                                            if value.translation.width < -50 {
+                                                navigatePhoto(direction: 1)
+                                            } else if value.translation.width > 50 {
+                                                navigatePhoto(direction: -1)
+                                            }
+                                        }
+                                )
                         } else if imageLoadFailed {
                             VStack(spacing: 12) {
                                 Image(systemName: "photo.badge.exclamationmark")
@@ -111,14 +128,17 @@ struct CellPhotosView: View {
 
                         // Metadata below photo
                         if let asset = selectedAsset {
-                            VStack(spacing: 4) {
+                            VStack(spacing: 6) {
                                 if let date = asset.creationDate {
-                                    Text(date.formatted(date: .long, time: .shortened))
-                                        .font(.callout)
-                                        .foregroundStyle(.white.opacity(0.8))
+                                    Text(date.formatted(date: .long, time: .omitted))
+                                        .font(.body.weight(.medium))
+                                        .foregroundStyle(.white.opacity(0.9))
+                                    Text(date.formatted(date: .omitted, time: .shortened))
+                                        .font(.subheadline)
+                                        .foregroundStyle(.white.opacity(0.6))
                                 }
                             }
-                            .padding(.bottom, 40)
+                            .padding(.bottom, 44)
                         }
                     }
                 }
@@ -166,9 +186,16 @@ struct CellPhotosView: View {
         assets = loaded
     }
 
+    private func navigatePhoto(direction: Int) {
+        let newIndex = selectedIndex + direction
+        guard newIndex >= 0, newIndex < assets.count else { return }
+        loadFullImage(for: assets[newIndex])
+    }
+
     private func loadFullImage(for asset: PHAsset) {
         selectedImage = nil
         selectedAsset = asset
+        selectedIndex = assets.firstIndex(where: { $0.localIdentifier == asset.localIdentifier }) ?? 0
         imageLoadFailed = false
         showFullImage = true
 
