@@ -12,6 +12,7 @@ final class StraySessionViewModel {
     private(set) var hasCompassTarget: Bool = false
     private(set) var noTargetMessage: String?
     private(set) var targetsReachedInSession: Int = 0
+    private(set) var distanceToTarget: Double? = nil
 
     private static let noTargetMessages = [
         "The familiar stretches in every direction",
@@ -60,6 +61,7 @@ final class StraySessionViewModel {
         guard isSessionActive else { return }
         isSessionActive = false
         gridEngine.setCompassTarget(nil)
+        distanceToTarget = nil
         locationService.switchMode(active: false)
 
         if let start = sessionStartTime {
@@ -100,7 +102,7 @@ final class StraySessionViewModel {
         let result = strayEngine.calculateBearing(from: location)
         let hadTarget = hasCompassTarget
         hasCompassTarget = result.hasTarget
-        noTargetMessage = result.hasTarget ? nil : Self.noTargetMessages.randomElement()!
+        noTargetMessage = result.hasTarget ? nil : (Self.noTargetMessages.randomElement() ?? "Keep exploring")
 
         gridEngine.setCompassTarget(result.hasTarget ? result.targetCell : nil)
 
@@ -118,6 +120,12 @@ final class StraySessionViewModel {
             if delta > 180.0 { delta -= 360.0 }
             if delta < -180.0 { delta += 360.0 }
             compassBearing += delta
+        }
+
+        if let target = result.targetCell, result.hasTarget {
+            distanceToTarget = location.distance(to: target.centerCoordinate)
+        } else {
+            distanceToTarget = nil
         }
     }
 }

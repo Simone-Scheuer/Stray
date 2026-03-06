@@ -47,7 +47,7 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     /// Returns true if the device is in Low Power Mode or battery is below 20%
     private func updatePowerState() {
         let lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled
-        let lowBattery = UIDevice.current.batteryLevel >= 0 && UIDevice.current.batteryLevel < 0.20
+        let lowBattery = UIDevice.current.batteryLevel > 0 && UIDevice.current.batteryLevel < 0.20
         isLowPowerActive = lowPower || lowBattery
     }
 
@@ -147,15 +147,29 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         var incrementalDistance: Double = 0
         if let last = lastValidLocation {
             let dist = last.distance(from: location)
+            let timeDelta = location.timestamp.timeIntervalSince(last.timestamp)
+
+            let speedOK = timeDelta >= 1.0
+                && (dist / timeDelta) <= Constants.maxSpeedMetersPerSecond
+
             if dist >= Constants.minimumDistanceBetweenUpdatesMeters
-                && dist <= Constants.maxDistanceDeltaMeters {
+                && dist <= Constants.maxDistanceDeltaMeters
+                && speedOK {
                 incrementalDistance = dist
                 cumulativeDistance += dist
                 estimatedSteps = Int(cumulativeDistance / Constants.averageStrideLengthMeters)
+                lastValidLocation = location
+            } else if timeDelta > Constants.staleReferenceTimeoutSeconds {
+                // Reference is stale (long background gap or GPS outage).
+                // Reset reference without accumulating distance so subsequent
+                // updates measure from a fresh position.
+                lastValidLocation = location
             }
+            // Otherwise keep lastValidLocation unchanged — prevents GPS jump drift
+        } else {
+            lastValidLocation = location
         }
 
-        lastValidLocation = location
         currentLocation = location.coordinate
         onLocationUpdate?(location.coordinate, incrementalDistance)
     }

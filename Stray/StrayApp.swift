@@ -11,6 +11,7 @@ struct StrayApp: App {
     private let persistenceService: PersistenceService
     private let straySessionViewModel: StraySessionViewModel
     private let statsViewModel: StatsViewModel
+    private let photoService: PhotoService
 
     /// Tracks whether a dedup-on-foreground pass has already run this activation cycle
     @State private var showOnboarding: Bool
@@ -106,11 +107,14 @@ struct StrayApp: App {
             }
         }
 
+        let photo = PhotoService()
+
         self.gridEngine = grid
         self.locationService = location
         self.persistenceService = persistence
         self.straySessionViewModel = sessionVM
         self.statsViewModel = StatsViewModel()
+        self.photoService = photo
 
         let onboardingCompleted = UserDefaults.standard.bool(forKey: Constants.hasCompletedOnboardingKey)
         self._showOnboarding = State(initialValue: !onboardingCompleted)
@@ -124,13 +128,20 @@ struct StrayApp: App {
                 .environment(\.persistenceService, persistenceService)
                 .environment(\.straySessionViewModel, straySessionViewModel)
                 .environment(\.statsViewModel, statsViewModel)
+                .environment(\.photoService, photoService)
                 .fullScreenCover(isPresented: $showOnboarding) {
-                    OnboardingView(locationService: locationService) {
+                    OnboardingView(locationService: locationService, photoService: photoService) {
                         showOnboarding = false
+                        bootRevealFromPhotos()
                     }
                 }
                 .onAppear {
                     startTrackingIfPermitted()
+                    // Returning users: auto-scan photos if already authorized
+                    if photoService.isAuthorized {
+                        photoService.scanLibrary()
+                        bootRevealFromPhotos()
+                    }
                 }
                 .onChange(of: locationService.authorizationStatus) { _, newStatus in
                     if newStatus == .authorizedWhenInUse || newStatus == .authorizedAlways {
@@ -139,6 +150,7 @@ struct StrayApp: App {
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                     deduplicateAndReload()
+                    photoService.refreshAuthorizationStatus()
                 }
         }
         .modelContainer(modelContainer)
@@ -148,6 +160,43 @@ struct StrayApp: App {
         let status = locationService.authorizationStatus
         if status == .authorizedWhenInUse || status == .authorizedAlways {
             locationService.startTracking()
+        }
+    }
+
+    /// Reveals cells where the user has geotagged photos (one-time)
+    private func bootRevealFromPhotos() {
+        guard photoService.isAuthorized else { return }
+        guard !UserDefaults.standard.bool(forKey: Constants.hasCompletedPhotoScanKey) else { return }
+
+        let photo = photoService
+        let grid = gridEngine
+        let persistence = persistenceService
+
+        Task.detached(priority: .utility) {
+            // Wait for scan to complete off the main thread
+            while await !photo.scanComplete {
+                try? await Task.sleep(for: .milliseconds(200))
+            }
+
+            let cells = await photo.cellsWithPhotos
+
+            await MainActor.run {
+                var newCells = 0
+                for cell in cells {
+                    if grid.visitCount(for: cell) == 0 {
+                        let result = grid.revealCell(at: cell.centerCoordinate)
+                        if case .newCell = result {
+                            let _ = persistence.saveOrUpdateCell(cell, at: cell.centerCoordinate)
+                            newCells += 1
+                        }
+                    }
+                }
+                if newCells > 0 {
+                    persistence.save()
+                    grid.forceRender()
+                }
+                UserDefaults.standard.set(true, forKey: Constants.hasCompletedPhotoScanKey)
+            }
         }
     }
 

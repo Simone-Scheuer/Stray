@@ -121,10 +121,10 @@ final class GridEngine {
             }
         }
 
-        let minLatBucket = Int(floor(minLat))
-        let maxLatBucket = Int(floor(maxLat))
-        let minLngBucket = Int(floor(minLng))
-        let maxLngBucket = Int(floor(maxLng))
+        let minLatBucket = max(-90, Int(floor(minLat)))
+        let maxLatBucket = min(90, Int(floor(maxLat)))
+        let minLngBucket = max(-180, Int(floor(minLng)))
+        let maxLngBucket = min(180, Int(floor(maxLng)))
 
         var result: [(GridCell, Int)] = []
         for latB in minLatBucket...maxLatBucket {

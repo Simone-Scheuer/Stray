@@ -198,9 +198,10 @@ final class PersistenceService {
 
     /// Returns all cells first revealed on or before `date`, keyed by GridCell with their visit count.
     func fetchCellsUpTo(date: Date) -> [GridCell: Int] {
-        let cutoff = Calendar.current.startOfDay(
-            for: Calendar.current.date(byAdding: .day, value: 1, to: date)!
-        )
+        guard let nextDay = Calendar.current.date(byAdding: .day, value: 1, to: date) else {
+            return [:]
+        }
+        let cutoff = Calendar.current.startOfDay(for: nextDay)
         let descriptor = FetchDescriptor<RevealedCell>(
             predicate: #Predicate<RevealedCell> { $0.firstVisitedAt < cutoff }
         )
