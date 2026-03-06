@@ -69,8 +69,14 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             context.setBlendMode(.clear)
             context.fill(cellRect)
 
-            // Special tile color overrides heat gradient
-            if let special = gridEngine.specialTile(for: cell),
+            // Photo mode uses purple density gradient; normal mode uses heat + special tiles
+            if gridEngine.photoCells != nil {
+                if let tint = photoDensityColor(for: count) {
+                    context.setBlendMode(.normal)
+                    context.setFillColor(tint.cgColor)
+                    context.fill(cellRect)
+                }
+            } else if let special = gridEngine.specialTile(for: cell),
                let specialColor = UIColor(hex: special.colorHex) {
                 context.setBlendMode(.normal)
                 context.setFillColor(specialColor.withAlphaComponent(Constants.specialTileAlpha).cgColor)
@@ -81,6 +87,21 @@ final class FogOverlayRenderer: MKOverlayRenderer {
                 context.fill(cellRect)
             }
             context.setBlendMode(.normal)
+
+            if gridEngine.inspectedCell == cell {
+                context.setFillColor(UIColor.white.withAlphaComponent(0.35).cgColor)
+                context.fill(cellRect)
+            }
+        }
+    }
+
+    private func photoDensityColor(for photoCount: Int) -> UIColor? {
+        switch photoCount {
+        case 0: return nil
+        case 1: return Constants.photoDensityFaint
+        case 2...4: return Constants.photoDensityMedium
+        case 5...9: return Constants.photoDensityBright
+        default: return Constants.photoDensityVivid
         }
     }
 

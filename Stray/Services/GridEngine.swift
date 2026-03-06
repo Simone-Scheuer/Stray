@@ -15,7 +15,9 @@ final class GridEngine {
     private(set) var lastVisitTimes: [GridCell: Date] = [:]
     private(set) var specialTiles: [GridCell: SpecialTile] = [:]
     private(set) var timelineCells: [GridCell: Int]? = nil
+    private(set) var photoCells: [GridCell: Int]? = nil
     private(set) var compassTarget: GridCell? = nil
+    private(set) var inspectedCell: GridCell? = nil
     private var spatialIndex: [SpatialBucket: [GridCell]] = [:]
 
     /// Incremented only when tiles actually need re-rendering (throttled).
@@ -101,6 +103,15 @@ final class GridEngine {
         let minLng = region.center.longitude - region.span.longitudeDelta / 2.0
         let maxLng = region.center.longitude + region.span.longitudeDelta / 2.0
 
+        if let photo = photoCells {
+            return photo.compactMap { (cell, count) in
+                let coord = cell.coordinate
+                guard coord.latitude >= minLat && coord.latitude <= maxLat
+                    && coord.longitude >= minLng && coord.longitude <= maxLng else { return nil }
+                return (cell, count)
+            }
+        }
+
         if let timeline = timelineCells {
             return timeline.compactMap { (cell, count) in
                 let coord = cell.coordinate
@@ -148,6 +159,18 @@ final class GridEngine {
         renderGeneration += 1
     }
 
+    // MARK: - Photo Mode
+
+    func enterPhotoMode(cells: [GridCell: Int]) {
+        photoCells = cells
+        renderGeneration += 1
+    }
+
+    func exitPhotoMode() {
+        photoCells = nil
+        renderGeneration += 1
+    }
+
     // MARK: - Timeline Mode
 
     func enterTimeline(cells: [GridCell: Int]) {
@@ -163,6 +186,12 @@ final class GridEngine {
 
     func setCompassTarget(_ cell: GridCell?) {
         compassTarget = cell
+        renderGeneration += 1
+    }
+
+    func setInspectedCell(_ cell: GridCell?) {
+        guard inspectedCell != cell else { return }
+        inspectedCell = cell
         renderGeneration += 1
     }
 

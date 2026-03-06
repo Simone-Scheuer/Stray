@@ -13,6 +13,7 @@ struct ContentView: View {
     @Environment(\.gridEngine) var gridEngine
     @Environment(\.persistenceService) var persistenceService
     @Environment(\.straySessionViewModel) var sessionViewModel
+    @Environment(\.photoService) var photoService
     @AppStorage(Constants.showMapLabelsKey) private var showMapLabels = false
     @AppStorage(Constants.mutedMapStyleKey) private var mutedMapStyle = true
     @AppStorage(Constants.showTrafficKey) private var showTraffic = false
@@ -40,6 +41,7 @@ struct ContentView: View {
     @State private var showCamera = false
     @State private var lastBeaconCount = 0
 
+    @State private var showPhotoMode = false
     @State private var showSplash = true
 
     var body: some View {
@@ -85,6 +87,20 @@ struct ContentView: View {
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 enterTimeline()
                             }
+                            if photoService.isAuthorized {
+                                iconButton(
+                                    systemName: showPhotoMode ? "photo.fill" : "photo",
+                                    tint: showPhotoMode ? .purple.opacity(0.7) : nil,
+                                    label: showPhotoMode ? "Exit photo mode" : "View photo density"
+                                ) {
+                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                    if showPhotoMode {
+                                        exitPhotoMode()
+                                    } else {
+                                        enterPhotoMode()
+                                    }
+                                }
+                            }
                             iconButton(systemName: "chart.bar", label: "View statistics") {
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 showStats = true
@@ -96,6 +112,18 @@ struct ContentView: View {
                         }
                         .padding(.trailing, 16)
                         .padding(.top, 12)
+                    }
+
+                    if showPhotoMode {
+                        HStack {
+                            Image(systemName: "photo.fill")
+                            Text("Photos")
+                        }
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.purple.opacity(0.7), in: Capsule())
                     }
 
                     if let vm = sessionViewModel, vm.isSessionActive {
@@ -279,10 +307,29 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - Photo Mode
+
+    private func enterPhotoMode() {
+        guard !showTimeline, !showPhotoMode else { return }
+        var photoCellDict: [GridCell: Int] = [:]
+        for cell in photoService.cellsWithPhotos {
+            guard gridEngine.isRevealed(cell) else { continue }
+            photoCellDict[cell] = photoService.photoCount(for: cell)
+        }
+        gridEngine.enterPhotoMode(cells: photoCellDict)
+        showPhotoMode = true
+    }
+
+    private func exitPhotoMode() {
+        gridEngine.exitPhotoMode()
+        showPhotoMode = false
+    }
+
     // MARK: - Timeline
 
     private func enterTimeline() {
         guard let ps = persistenceService else { return }
+        if showPhotoMode { exitPhotoMode() }
         timelineVM.load(persistence: ps)
         if !timelineVM.activeDays.isEmpty {
             timelineVM.applyDay(gridEngine: gridEngine, persistence: ps)
