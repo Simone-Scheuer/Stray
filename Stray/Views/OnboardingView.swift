@@ -1,10 +1,13 @@
 import SwiftUI
+import Photos
 
 struct OnboardingView: View {
     let locationService: LocationService
+    let photoService: PhotoService
     let onComplete: () -> Void
 
     @State private var currentPage = 0
+    @State private var photoScanSummary: String?
 
     var body: some View {
         TabView(selection: $currentPage) {
@@ -13,13 +16,16 @@ struct OnboardingView: View {
 
             locationPage
                 .tag(1)
+
+            photoPage
+                .tag(2)
         }
         .tabViewStyle(.page(indexDisplayMode: .always))
         .indexViewStyle(.page(backgroundDisplayMode: .always))
         .background(Color.black)
         .onChange(of: locationService.authorizationStatus) { _, newStatus in
             if newStatus != .notDetermined {
-                completeOnboarding()
+                withAnimation { currentPage = 2 }
             }
         }
     }
@@ -111,6 +117,87 @@ struct OnboardingView: View {
                     completeOnboarding()
                 } label: {
                     Text("Not Now")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+            }
+            .padding(.horizontal, 32)
+            .padding(.bottom, 48)
+        }
+    }
+
+    // MARK: - Photo Page
+
+    private var photoPage: some View {
+        VStack(spacing: 32) {
+            Spacer()
+
+            Image(systemName: "photo.on.rectangle.angled")
+                .font(.system(size: 64))
+                .foregroundStyle(.orange)
+                .accessibilityHidden(true)
+
+            VStack(spacing: 16) {
+                Text("Reveal Your History")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(.white)
+
+                Text("Stray can scan your photo library to reveal places you've already been. Your photos stay in your library — Stray just reads their locations.")
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+
+                if let summary = photoScanSummary {
+                    Text(summary)
+                        .font(.callout.weight(.medium))
+                        .foregroundStyle(.orange)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 32)
+                        .transition(.opacity)
+                }
+            }
+
+            Spacer()
+
+            VStack(spacing: 12) {
+                Button {
+                    Task.detached(priority: .userInitiated) {
+                        let status = await photoService.requestAuthorization()
+                        if status == .authorized || status == .limited {
+                            await photoService.scanLibrary()
+                            // Wait for scan to complete off main thread
+                            while await !photoService.scanComplete {
+                                try? await Task.sleep(for: .milliseconds(100))
+                            }
+                            let cells = await photoService.cellsWithPhotos.count
+                            let photos = await photoService.totalGeotaggedPhotos
+                            await MainActor.run {
+                                if cells > 0 {
+                                    photoScanSummary = "Found \(photos) photos across \(cells) locations — your map is already coming alive."
+                                } else {
+                                    photoScanSummary = "No geotagged photos found. Your map starts fresh."
+                                }
+                            }
+                            try? await Task.sleep(for: .seconds(2))
+                            await MainActor.run { completeOnboarding() }
+                        } else {
+                            await MainActor.run { completeOnboarding() }
+                        }
+                    }
+                } label: {
+                    Text("Reveal My Map")
+                        .font(.headline)
+                        .foregroundStyle(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(.white, in: RoundedRectangle(cornerRadius: 14))
+                }
+
+                Button {
+                    completeOnboarding()
+                } label: {
+                    Text("Start Fresh")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.5))
                 }

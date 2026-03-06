@@ -1,9 +1,15 @@
 import SwiftUI
+import Photos
 
 struct SettingsView: View {
     @Environment(\.locationService) var locationService
+    @Environment(\.photoService) var photoService
     @Environment(\.dismiss) private var dismiss
     @AppStorage(Constants.showMapLabelsKey) private var showMapLabels = false
+    @AppStorage(Constants.mutedMapStyleKey) private var mutedMapStyle = true
+    @AppStorage(Constants.showTrafficKey) private var showTraffic = false
+    @AppStorage(Constants.showScaleKey) private var showScale = true
+    @AppStorage(Constants.allowRotationKey) private var allowRotation = true
 
     var body: some View {
         NavigationStack {
@@ -11,6 +17,7 @@ struct SettingsView: View {
                 trackingSection
                 mapSection
                 locationSection
+                photoSection
                 aboutSection
             }
             .navigationTitle("Settings")
@@ -48,11 +55,15 @@ struct SettingsView: View {
 
     private var mapSection: some View {
         Section {
-            Toggle("Show Map Labels", isOn: $showMapLabels)
+            Toggle("Muted Style", isOn: $mutedMapStyle)
+            Toggle("Show Labels", isOn: $showMapLabels)
+            Toggle("Show Traffic", isOn: $showTraffic)
+            Toggle("Show Scale", isOn: $showScale)
+            Toggle("Allow Rotation", isOn: $allowRotation)
         } header: {
             Text("Map")
         } footer: {
-            Text("Show points of interest and place labels on the map.")
+            Text("Muted style dims the base map so your exploration colors stand out more.")
         }
     }
 
@@ -86,6 +97,54 @@ struct SettingsView: View {
             if locationService.authorizationStatus == .authorizedWhenInUse {
                 Text("\"Always\" lets Stray track in the background so you never miss a step.")
             }
+        }
+    }
+
+    // MARK: - Photos
+
+    private var photoSection: some View {
+        Section {
+            HStack {
+                Text("Permission")
+                Spacer()
+                Text(photoPermissionLabel)
+                    .foregroundStyle(.secondary)
+            }
+
+            if photoService.isAuthorized {
+                Button("Rescan Photo Library") {
+                    photoService.scanLibrary()
+                }
+            }
+
+            if photoService.authorizationStatus == .denied {
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+            }
+
+            if photoService.authorizationStatus == .notDetermined {
+                Button("Allow Photo Access") {
+                    Task { let _ = await photoService.requestAuthorization() }
+                }
+            }
+        } header: {
+            Text("Photos")
+        } footer: {
+            Text("Stray reads photo locations to show them on explored tiles. Photos are never copied.")
+        }
+    }
+
+    private var photoPermissionLabel: String {
+        switch photoService.authorizationStatus {
+        case .notDetermined: return "Not Set"
+        case .restricted: return "Restricted"
+        case .denied: return "Denied"
+        case .authorized: return "Full Access"
+        case .limited: return "Limited"
+        @unknown default: return "Unknown"
         }
     }
 

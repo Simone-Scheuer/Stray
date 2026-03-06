@@ -75,6 +75,17 @@ struct StatsEngine {
         return (cells: summary.cellsRevealed, distance: summary.distanceMeters, steps: summary.stepCount)
     }
 
+    func totalAreaSquareMeters() -> Double {
+        Double(totalCellsRevealed()) * (Constants.gridCellSizeMeters * Constants.gridCellSizeMeters)
+    }
+
+    func fetchSessions() -> [StraySession] {
+        let descriptor = FetchDescriptor<StraySession>(
+            sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
+        )
+        return (try? context.fetch(descriptor)) ?? []
+    }
+
     func cityBreakdown() -> [(city: String, count: Int)] {
         let descriptor = FetchDescriptor<RevealedCell>()
         guard let cells = try? context.fetch(descriptor) else { return [] }

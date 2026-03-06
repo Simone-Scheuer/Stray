@@ -9,6 +9,7 @@ struct CellPhotosView: View {
     @State private var thumbnails: [String: UIImage] = [:]
     @State private var selectedImage: UIImage?
     @State private var showFullImage = false
+    @State private var imageLoadFailed = false
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
     private let thumbSize = CGSize(width: 80, height: 80)
@@ -48,23 +49,37 @@ struct CellPhotosView: View {
             }
             .onAppear { loadAssets() }
             .fullScreenCover(isPresented: $showFullImage) {
-                if let image = selectedImage {
-                    ZStack(alignment: .topTrailing) {
-                        Color.black.ignoresSafeArea()
+                ZStack(alignment: .topTrailing) {
+                    Color.black.ignoresSafeArea()
+                    if let image = selectedImage {
                         Image(uiImage: image)
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .ignoresSafeArea()
-                        Button {
-                            showFullImage = false
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title)
-                                .foregroundStyle(.white.opacity(0.8))
-                                .padding(16)
+                    } else if imageLoadFailed {
+                        VStack(spacing: 12) {
+                            Image(systemName: "photo.badge.exclamationmark")
+                                .font(.largeTitle)
+                                .foregroundStyle(.secondary)
+                            Text("Unable to load photo")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
                         }
-                        .accessibilityLabel("Close preview")
+                    } else {
+                        ProgressView()
+                            .tint(.white)
                     }
+                    Button {
+                        showFullImage = false
+                        selectedImage = nil
+                        imageLoadFailed = false
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.title)
+                            .foregroundStyle(.white.opacity(0.8))
+                            .padding(16)
+                    }
+                    .accessibilityLabel("Close preview")
                 }
             }
         }
@@ -106,6 +121,10 @@ struct CellPhotosView: View {
     }
 
     private func loadFullImage(for asset: PHAsset) {
+        selectedImage = nil
+        imageLoadFailed = false
+        showFullImage = true
+
         let options = PHImageRequestOptions()
         options.deliveryMode = .highQualityFormat
         options.isNetworkAccessAllowed = true
@@ -119,7 +138,8 @@ struct CellPhotosView: View {
             Task { @MainActor in
                 if let image {
                     self.selectedImage = image
-                    self.showFullImage = true
+                } else {
+                    self.imageLoadFailed = true
                 }
             }
         }

@@ -20,6 +20,10 @@ private struct StraySessionViewModelKey: EnvironmentKey {
     static var defaultValue: StraySessionViewModel? { nil }
 }
 
+private struct PhotoServiceKey: EnvironmentKey {
+    @MainActor static let defaultValue = PhotoService()
+}
+
 private struct StatsViewModelKey: EnvironmentKey {
     static let defaultValue = StatsViewModel()
 }
@@ -43,6 +47,11 @@ extension EnvironmentValues {
     var straySessionViewModel: StraySessionViewModel? {
         get { self[StraySessionViewModelKey.self] }
         set { self[StraySessionViewModelKey.self] = newValue }
+    }
+
+    var photoService: PhotoService {
+        get { self[PhotoServiceKey.self] }
+        set { self[PhotoServiceKey.self] = newValue }
     }
 
     var statsViewModel: StatsViewModel {

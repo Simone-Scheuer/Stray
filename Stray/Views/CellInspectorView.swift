@@ -7,6 +7,7 @@ struct CellInspectorView: View {
     @Environment(\.dismiss) var dismiss
 
     @State private var showMarkOptions = false
+    @State private var showRemoveAlert = false
     @State private var customLabel = ""
 
     var body: some View {
@@ -25,7 +26,10 @@ struct CellInspectorView: View {
                         .font(.headline)
                 }
                 Spacer()
-                Button { dismiss() } label: {
+                Button {
+                    gridEngine.setInspectedCell(nil)
+                    dismiss()
+                } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.title3)
                         .foregroundStyle(.secondary)
@@ -60,13 +64,19 @@ struct CellInspectorView: View {
                     .foregroundStyle(.secondary)
             }
 
+            // Photos
+            if count > 0 {
+                Divider()
+                CellPhotosView(cell: cell)
+            }
+
             // Mark/unmark controls (only for explored cells)
             if count > 0 {
                 Divider()
 
                 if specialTile != nil {
                     Button(role: .destructive) {
-                        removeMarker()
+                        showRemoveAlert = true
                     } label: {
                         Label("Remove Marker", systemImage: "xmark.circle")
                     }
@@ -84,6 +94,12 @@ struct CellInspectorView: View {
             }
         }
         .padding()
+        .alert("Remove Marker?", isPresented: $showRemoveAlert) {
+            Button("Remove", role: .destructive) { removeMarker() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This will remove the marker from this tile.")
+        }
     }
 
     // MARK: - Mark Options

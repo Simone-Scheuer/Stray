@@ -6,6 +6,7 @@ struct StatsView: View {
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.statsViewModel) var statsViewModel
+    @Environment(\.photoService) var photoService
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -91,6 +92,10 @@ struct StatsView: View {
                 lifetimeCard(value: statsViewModel.totalDistance, label: "distance")
                 lifetimeCard(value: statsViewModel.totalSteps, label: "steps")
                 lifetimeCard(value: streakText, label: "streak")
+                lifetimeCard(value: statsViewModel.totalArea, label: "area explored")
+                if photoService.isAuthorized {
+                    lifetimeCard(value: formattedCount(photoService.totalGeotaggedPhotos), label: "geotagged photos")
+                }
             }
         }
     }
@@ -103,7 +108,7 @@ struct StatsView: View {
                 .font(.headline)
                 .foregroundStyle(.secondary)
 
-            if statsViewModel.sessionCount == 0 {
+            if statsViewModel.sessions.isEmpty {
                 Text("Start a Stray session to see your exploration stats here.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
@@ -111,18 +116,38 @@ struct StatsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
             } else {
-                HStack {
-                    Text("\(statsViewModel.sessionCount)")
-                        .font(.title2.bold())
-                    Text(statsViewModel.sessionCount == 1 ? "session" : "sessions")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
+                VStack(spacing: 0) {
+                    ForEach(Array(statsViewModel.sessions.enumerated()), id: \.offset) { index, session in
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(session.startedAt.formatted(date: .abbreviated, time: .shortened))
+                                    .font(.body)
+                                Text(statsViewModel.formattedDuration(session.durationSeconds))
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(formatDistance(session.distanceMeters))
+                                    .font(.body.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                                Text("\(session.cellsRevealedCount) cells")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .accessibilityElement(children: .combine)
+                        .accessibilityLabel("\(session.startedAt.formatted(date: .abbreviated, time: .shortened)), \(statsViewModel.formattedDuration(session.durationSeconds)), \(formatDistance(session.distanceMeters)), \(session.cellsRevealedCount) cells")
+
+                        if index < statsViewModel.sessions.count - 1 {
+                            Divider()
+                                .padding(.leading, 16)
+                        }
+                    }
                 }
-                .padding(16)
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(statsViewModel.sessionCount) \(statsViewModel.sessionCount == 1 ? "session" : "sessions")")
             }
         }
     }

@@ -14,6 +14,10 @@ final class StatsViewModel {
     private(set) var totalSteps: String = "0"
     private(set) var currentStreak: Int = 0
     private(set) var sessionCount: Int = 0
+    private(set) var totalArea: String = "0 km²"
+
+    // Sessions
+    private(set) var sessions: [StraySession] = []
 
     // Cities
     private(set) var cities: [(city: String, count: Int)] = []
@@ -38,8 +42,32 @@ final class StatsViewModel {
         totalSteps = formatNumber(engine.totalSteps())
         currentStreak = engine.currentStreak()
         sessionCount = engine.straySessionCount()
+        totalArea = formatArea(engine.totalAreaSquareMeters())
+        sessions = engine.fetchSessions()
 
         cities = engine.cityBreakdown()
+    }
+
+    func formattedDuration(_ seconds: Double) -> String {
+        let total = Int(seconds)
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        let s = total % 60
+        if h > 0 { return String(format: "%d:%02d:%02d", h, m, s) }
+        return String(format: "%02d:%02d", m, s)
+    }
+
+    private func formatArea(_ squareMeters: Double) -> String {
+        let useMetric = Locale.current.measurementSystem == .metric
+        if useMetric {
+            let km2 = squareMeters / 1_000_000.0
+            if km2 < 0.01 { return "<0.01 km²" }
+            return String(format: "%.2f km²", km2)
+        } else {
+            let mi2 = squareMeters / 2_589_988.0
+            if mi2 < 0.01 { return "<0.01 mi²" }
+            return String(format: "%.2f mi²", mi2)
+        }
     }
 
     private func formatNumber(_ value: Int) -> String {

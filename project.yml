@@ -22,6 +22,9 @@ targets:
       properties:
         NSLocationWhenInUseUsageDescription: "Stray uses your location to reveal the parts of your world you've explored."
         NSLocationAlwaysAndWhenInUseUsageDescription: "Always-on location lets Stray track your exploration even when the app is in the background, so you never miss a step."
+        NSPhotoLibraryUsageDescription: "Stray reads photo locations to show your photos on explored tiles and reveal places you've already been."
+        NSPhotoLibraryAddUsageDescription: "Stray saves photos you take during exploration to your camera roll."
+        NSCameraUsageDescription: "Stray uses the camera so you can capture moments during exploration."
         UIBackgroundModes:
           - location
         UILaunchScreen: {}
