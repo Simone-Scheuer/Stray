@@ -8,6 +8,7 @@ struct CellPhotosView: View {
     @State private var assets: [PHAsset] = []
     @State private var thumbnails: [String: UIImage] = [:]
     @State private var selectedImage: UIImage?
+    @State private var selectedAsset: PHAsset?
     @State private var showFullImage = false
     @State private var imageLoadFailed = false
     @State private var showShareSheet = false
@@ -58,50 +59,80 @@ struct CellPhotosView: View {
             }
             .onAppear { loadAssets() }
             .fullScreenCover(isPresented: $showFullImage) {
-                ZStack(alignment: .topTrailing) {
+                ZStack {
                     Color.black.ignoresSafeArea()
-                    if let image = selectedImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .ignoresSafeArea()
-                    } else if imageLoadFailed {
-                        VStack(spacing: 12) {
-                            Image(systemName: "photo.badge.exclamationmark")
-                                .font(.largeTitle)
-                                .foregroundStyle(.secondary)
-                            Text("Unable to load photo")
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                        }
-                    } else {
-                        ProgressView()
-                            .tint(.white)
-                    }
-                    HStack(spacing: 12) {
-                        if selectedImage != nil {
-                            Button {
-                                showShareSheet = true
-                            } label: {
-                                Image(systemName: "square.and.arrow.up.circle.fill")
-                                    .font(.title)
-                                    .foregroundStyle(.white.opacity(0.8))
+
+                    VStack(spacing: 0) {
+                        // Top bar — share + close
+                        HStack {
+                            Spacer()
+                            HStack(spacing: 16) {
+                                if selectedImage != nil {
+                                    Button {
+                                        showShareSheet = true
+                                    } label: {
+                                        Image(systemName: "square.and.arrow.up.circle.fill")
+                                            .font(.title2)
+                                            .symbolRenderingMode(.palette)
+                                            .foregroundStyle(.white, .white.opacity(0.3))
+                                    }
+                                    .accessibilityLabel("Share photo")
+                                }
+                                Button {
+                                    showFullImage = false
+                                    selectedImage = nil
+                                    selectedAsset = nil
+                                    imageLoadFailed = false
+                                    showShareSheet = false
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.title2)
+                                        .symbolRenderingMode(.palette)
+                                        .foregroundStyle(.white, .white.opacity(0.3))
+                                }
+                                .accessibilityLabel("Close preview")
                             }
-                            .accessibilityLabel("Share photo")
+                            .padding(.horizontal, 20)
+                            .padding(.top, 12)
                         }
-                        Button {
-                            showFullImage = false
-                            selectedImage = nil
-                            imageLoadFailed = false
-                            showShareSheet = false
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title)
-                                .foregroundStyle(.white.opacity(0.8))
+
+                        Spacer()
+
+                        // Centered photo
+                        if let image = selectedImage {
+                            Image(uiImage: image)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .padding(.horizontal, 4)
+                        } else if imageLoadFailed {
+                            VStack(spacing: 12) {
+                                Image(systemName: "photo.badge.exclamationmark")
+                                    .font(.largeTitle)
+                                    .foregroundStyle(.secondary)
+                                Text("Unable to load photo")
+                                    .font(.callout)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } else {
+                            ProgressView()
+                                .tint(.white)
                         }
-                        .accessibilityLabel("Close preview")
+
+                        Spacer()
+
+                        // Metadata below photo
+                        if let asset = selectedAsset {
+                            VStack(spacing: 4) {
+                                if let date = asset.creationDate {
+                                    Text(date.formatted(date: .long, time: .shortened))
+                                        .font(.callout)
+                                        .foregroundStyle(.white.opacity(0.8))
+                                }
+                            }
+                            .padding(.bottom, 40)
+                        }
                     }
-                    .padding(16)
                 }
                 .sheet(isPresented: $showShareSheet) {
                     if let image = selectedImage {
@@ -176,6 +207,7 @@ struct CellPhotosView: View {
 
     private func loadFullImage(for asset: PHAsset) {
         selectedImage = nil
+        selectedAsset = asset
         imageLoadFailed = false
         showFullImage = true
 

@@ -51,16 +51,6 @@ struct CellInspectorView: View {
                     .accessibilityLabel("First visited \(record.firstVisitedAt.formatted(date: .abbreviated, time: .shortened))")
                 LabeledContent("Last visited", value: record.lastVisitedAt.formatted(date: .abbreviated, time: .shortened))
                     .accessibilityLabel("Last visited \(record.lastVisitedAt.formatted(date: .abbreviated, time: .shortened))")
-                if let city = record.city {
-                    LabeledContent("City", value: city)
-                        .accessibilityLabel("City: \(city)")
-                } else {
-                    LabeledContent("City") {
-                        Text("Locating...")
-                            .foregroundStyle(.secondary)
-                    }
-                    .accessibilityLabel("City: locating")
-                }
             } else if count > 0 {
                 LabeledContent("Visits", value: "\(count)")
                     .accessibilityLabel("\(count) visits")
