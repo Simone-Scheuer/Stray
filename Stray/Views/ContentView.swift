@@ -1,11 +1,23 @@
 import SwiftUI
 import UIKit
 
+private struct SessionSnapshot {
+    let duration: TimeInterval
+    let cells: Int
+    let distance: Double
+    let steps: Int
+    let beacons: Int
+}
+
 struct ContentView: View {
     @Environment(\.gridEngine) var gridEngine
     @Environment(\.persistenceService) var persistenceService
     @Environment(\.straySessionViewModel) var sessionViewModel
     @AppStorage(Constants.showMapLabelsKey) private var showMapLabels = false
+    @AppStorage(Constants.mutedMapStyleKey) private var mutedMapStyle = true
+    @AppStorage(Constants.showTrafficKey) private var showTraffic = false
+    @AppStorage(Constants.showScaleKey) private var showScale = true
+    @AppStorage(Constants.allowRotationKey) private var allowRotation = true
 
     @State private var showStats = false
     @State private var showSettings = false
@@ -17,13 +29,33 @@ struct ContentView: View {
     @State private var showTimeline = false
     @State private var timelineVM = TimelineViewModel()
 
+    @State private var isFollowingUser = true
+
+    @State private var showSessionSummary = false
+    @State private var lastSession: SessionSnapshot?
+    @State private var summaryDismissTask: Task<Void, Never>?
+
+    @State private var showPsychocachePrompt = false
+    @State private var psychocacheDismissTask: Task<Void, Never>?
+    @State private var showCamera = false
+    @State private var lastBeaconCount = 0
+
+    @State private var showSplash = true
+
     var body: some View {
         ZStack {
             MapViewRepresentable(
                 gridEngine: gridEngine,
                 showMapLabels: showMapLabels,
+                mutedMapStyle: mutedMapStyle,
+                showTraffic: showTraffic,
+                showScale: showScale,
+                allowRotation: allowRotation,
+                isFollowingUser: $isFollowingUser,
                 onCellTapped: { cell in
                     guard !showTimeline else { return }
+                    UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                    gridEngine.setInspectedCell(cell)
                     inspectedCell = cell
                 }
             )
@@ -43,6 +75,8 @@ struct ContentView: View {
                                 } else {
                                     iconButton(systemName: "figure.walk.departure", label: "Start exploring") {
                                         UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
+                                        summaryDismissTask?.cancel()
+                                        showSessionSummary = false
                                         vm.startSession()
                                     }
                                 }
@@ -70,12 +104,13 @@ struct ContentView: View {
                         Spacer()
 
                         HStack {
+                            Spacer()
                             StrayCompassView(
                                 bearing: vm.compassBearing,
                                 hasTarget: vm.hasCompassTarget,
-                                noTargetMessage: vm.noTargetMessage
+                                noTargetMessage: vm.noTargetMessage,
+                                distanceToTarget: vm.distanceToTarget
                             )
-                            .padding(.leading, 16)
                             Spacer()
                         }
                         .padding(.bottom, 16)
@@ -96,6 +131,61 @@ struct ContentView: View {
                 }
             }
         }
+        .overlay(alignment: .bottomTrailing) {
+            if !isFollowingUser && !showTimeline {
+                Button {
+                    isFollowingUser = true
+                } label: {
+                    Image(systemName: "location.fill")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .background(.black.opacity(0.6), in: Circle())
+                }
+                .accessibilityLabel("Recenter map on your location")
+                .padding(.trailing, 16)
+                .padding(.bottom, 40)
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: isFollowingUser)
+        .overlay(alignment: .bottom) {
+            if showSessionSummary, let snap = lastSession {
+                sessionSummaryCard(snap: snap)
+                    .padding(.bottom, 40)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .onTapGesture {
+                        summaryDismissTask?.cancel()
+                        showSessionSummary = false
+                    }
+            }
+        }
+        .animation(.easeInOut(duration: 0.4), value: showSessionSummary)
+        .overlay(alignment: .bottom) {
+            if showPsychocachePrompt {
+                psychocachePrompt
+                    .padding(.bottom, 100)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.4), value: showPsychocachePrompt)
+        .onChange(of: sessionViewModel?.targetsReachedInSession) { old, new in
+            guard let new, new > (old ?? 0) else { return }
+            lastBeaconCount = new
+            showPsychocachePrompt = true
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            psychocacheDismissTask?.cancel()
+            psychocacheDismissTask = Task {
+                try? await Task.sleep(for: .seconds(5))
+                if !Task.isCancelled {
+                    showPsychocachePrompt = false
+                }
+            }
+        }
+        .fullScreenCover(isPresented: $showCamera) {
+            CameraView()
+                .ignoresSafeArea()
+        }
         .sheet(isPresented: $showStats) {
             StatsView(onOpenTimeline: {
                 showStats = false
@@ -108,9 +198,11 @@ struct ContentView: View {
         .sheet(isPresented: $showSettings) {
             SettingsView()
         }
-        .sheet(item: $inspectedCell) { cell in
+        .sheet(item: $inspectedCell, onDismiss: {
+            gridEngine.setInspectedCell(nil)
+        }) { cell in
             CellInspectorView(cell: cell)
-                .presentationDetents([.height(220), .medium])
+                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
         .overlay(alignment: .bottom) {
@@ -144,7 +236,25 @@ struct ContentView: View {
         .alert("End Stray?", isPresented: $showEndSessionAlert) {
             Button("End", role: .destructive) {
                 UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                sessionViewModel?.endSession()
+                if let vm = sessionViewModel {
+                    let snapshot = SessionSnapshot(
+                        duration: vm.elapsedSeconds,
+                        cells: vm.cellsRevealedInSession,
+                        distance: vm.distanceInSession,
+                        steps: vm.estimatedStepsInSession,
+                        beacons: vm.targetsReachedInSession
+                    )
+                    vm.endSession()
+                    lastSession = snapshot
+                    showSessionSummary = true
+                    summaryDismissTask?.cancel()
+                    summaryDismissTask = Task {
+                        try? await Task.sleep(for: .seconds(5))
+                        if !Task.isCancelled {
+                            showSessionSummary = false
+                        }
+                    }
+                }
             }
             Button("Cancel", role: .cancel) {}
         } message: {
@@ -154,6 +264,18 @@ struct ContentView: View {
             #if DEBUG && targetEnvironment(simulator)
             gridEngine.addTestCells()
             #endif
+        }
+        .overlay {
+            if showSplash {
+                SplashOverlay()
+                    .transition(.opacity)
+                    .ignoresSafeArea()
+            }
+        }
+        .animation(.easeOut(duration: 0.8), value: showSplash)
+        .task {
+            try? await Task.sleep(for: .seconds(2.5))
+            showSplash = false
         }
     }
 
@@ -209,6 +331,71 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - Session Summary
+
+    private func sessionSummaryCard(snap: SessionSnapshot) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Session Complete")
+                .font(.headline)
+                .foregroundStyle(.white)
+            HStack(spacing: 20) {
+                summaryItem(icon: "clock", value: formattedTime(snap.duration))
+                summaryItem(icon: "square.grid.2x2", value: "\(snap.cells)")
+                summaryItem(icon: "figure.walk", value: formattedDistance(snap.distance))
+            }
+            HStack(spacing: 20) {
+                summaryItem(icon: "shoeprints.fill", value: "\(snap.steps)")
+                if snap.beacons > 0 {
+                    summaryItem(icon: "mappin.circle.fill", value: "\(snap.beacons)", tint: .red.opacity(0.9))
+                }
+            }
+        }
+        .padding(20)
+        .background(.black.opacity(0.8), in: RoundedRectangle(cornerRadius: 18))
+    }
+
+    private func summaryItem(icon: String, value: String, tint: Color = .white) -> some View {
+        Label(value, systemImage: icon)
+            .font(.callout.monospacedDigit())
+            .foregroundStyle(tint)
+    }
+
+    // MARK: - Psychocache Prompt
+
+    private var psychocachePrompt: some View {
+        HStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("You've arrived.")
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.white)
+                Text("What do you notice?")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.7))
+            }
+            if CameraView.isAvailable {
+                Button {
+                    psychocacheDismissTask?.cancel()
+                    showPsychocachePrompt = false
+                    showCamera = true
+                } label: {
+                    Image(systemName: "camera.fill")
+                        .font(.system(size: 18))
+                        .foregroundStyle(.black)
+                        .frame(width: 40, height: 40)
+                        .background(.white, in: Circle())
+                }
+                .accessibilityLabel("Open camera")
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 14)
+        .background(.black.opacity(0.8), in: Capsule())
+        .onTapGesture {
+            psychocacheDismissTask?.cancel()
+            showPsychocachePrompt = false
+        }
+    }
+
     // MARK: - Formatting
 
     private func formattedTime(_ seconds: TimeInterval) -> String {
@@ -219,5 +406,67 @@ struct ContentView: View {
 
     private func formattedDistance(_ meters: Double) -> String {
         formatDistance(meters)
+    }
+}
+
+// MARK: - Splash Overlay
+
+private struct SplashOverlay: View {
+    @State private var animationPhase: Double = 0
+
+    private let gridSize = 5
+    private let colors: [Color] = [
+        Color(UIColor(red: 0.3, green: 0.5, blue: 0.9, alpha: 1.0)),
+        Color(UIColor(red: 0.35, green: 0.55, blue: 0.8, alpha: 1.0)),
+        Color(UIColor(red: 0.55, green: 0.5, blue: 0.45, alpha: 1.0)),
+        Color(UIColor(red: 0.9, green: 0.6, blue: 0.2, alpha: 1.0)),
+        Color(UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 1.0)),
+    ]
+
+    var body: some View {
+        ZStack {
+            Color(UIColor(white: 0.06, alpha: 1.0))
+
+            VStack(spacing: 24) {
+                gridAnimation
+
+                Text("Stray")
+                    .font(.system(size: 32, weight: .light, design: .default))
+                    .foregroundStyle(.white.opacity(0.9))
+                    .tracking(8)
+            }
+        }
+        .onAppear {
+            withAnimation(.linear(duration: 2.0).repeatForever(autoreverses: false)) {
+                animationPhase = 1.0
+            }
+        }
+    }
+
+    private var gridAnimation: some View {
+        VStack(spacing: 4) {
+            ForEach(0..<gridSize, id: \.self) { row in
+                HStack(spacing: 4) {
+                    ForEach(0..<gridSize, id: \.self) { col in
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(cellColor(row: row, col: col))
+                            .frame(width: 20, height: 20)
+                            .opacity(cellOpacity(row: row, col: col))
+                    }
+                }
+            }
+        }
+    }
+
+    private func cellColor(row: Int, col: Int) -> Color {
+        let index = (row + col) % colors.count
+        let shift = Int(animationPhase * Double(colors.count))
+        return colors[(index + shift) % colors.count]
+    }
+
+    private func cellOpacity(row: Int, col: Int) -> Double {
+        let normalizedPos = Double(row + col) / Double((gridSize - 1) * 2)
+        let phase = (animationPhase + normalizedPos).truncatingRemainder(dividingBy: 1.0)
+        return 0.3 + 0.7 * phase
     }
 }

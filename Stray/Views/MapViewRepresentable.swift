@@ -9,21 +9,30 @@ final class CompassTargetAnnotation: NSObject, MKAnnotation {
 struct MapViewRepresentable: UIViewRepresentable {
     let gridEngine: GridEngine
     var showMapLabels: Bool = false
+    var mutedMapStyle: Bool = true
+    var showTraffic: Bool = false
+    var showScale: Bool = true
+    var allowRotation: Bool = true
+    @Binding var isFollowingUser: Bool
     var onCellTapped: ((GridCell) -> Void)?
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(gridEngine: gridEngine, onCellTapped: onCellTapped)
+        Coordinator(gridEngine: gridEngine, onCellTapped: onCellTapped, isFollowingUser: $isFollowingUser)
     }
 
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
         mapView.showsUserLocation = true
-        mapView.userTrackingMode = .follow
         mapView.isPitchEnabled = false
         mapView.showsCompass = false
+        mapView.showsScale = showScale
+        mapView.isRotateEnabled = allowRotation
 
-        let config = MKStandardMapConfiguration(elevationStyle: .flat)
+        let config = MKStandardMapConfiguration(
+            emphasisStyle: mutedMapStyle ? .muted : .default
+        )
+        config.showsTraffic = showTraffic
         if !showMapLabels {
             config.pointOfInterestFilter = .excludingAll
         }
@@ -43,6 +52,23 @@ struct MapViewRepresentable: UIViewRepresentable {
         )
         mapView.addGestureRecognizer(tapGesture)
 
+        // Fog preload: zoom out to city scale during splash, forcing the fog renderer
+        // to draw at wider zoom levels. Then zoom back to user follow mode.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            let center = mapView.userLocation.coordinate.latitude != 0
+                ? mapView.userLocation.coordinate
+                : mapView.centerCoordinate
+            let cityRegion = MKCoordinateRegion(
+                center: center,
+                span: MKCoordinateSpan(latitudeDelta: 0.08, longitudeDelta: 0.08)
+            )
+            mapView.setRegion(cityRegion, animated: false)
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                mapView.setUserTrackingMode(.follow, animated: false)
+            }
+        }
+
         return mapView
     }
 
@@ -54,13 +80,35 @@ struct MapViewRepresentable: UIViewRepresentable {
             context.coordinator.syncCompassTarget(on: uiView, gridEngine: gridEngine)
         }
 
-        if showMapLabels != context.coordinator.lastShowMapLabels {
+        if isFollowingUser && uiView.userTrackingMode != .follow {
+            uiView.setUserTrackingMode(.follow, animated: true)
+        }
+
+        let configChanged = showMapLabels != context.coordinator.lastShowMapLabels
+            || mutedMapStyle != context.coordinator.lastMutedMapStyle
+            || showTraffic != context.coordinator.lastShowTraffic
+        if configChanged {
             context.coordinator.lastShowMapLabels = showMapLabels
-            let config = MKStandardMapConfiguration(elevationStyle: .flat)
+            context.coordinator.lastMutedMapStyle = mutedMapStyle
+            context.coordinator.lastShowTraffic = showTraffic
+            let config = MKStandardMapConfiguration(
+                emphasisStyle: mutedMapStyle ? .muted : .default
+            )
+            config.showsTraffic = showTraffic
             if !showMapLabels {
                 config.pointOfInterestFilter = .excludingAll
             }
             uiView.preferredConfiguration = config
+        }
+
+        if showScale != context.coordinator.lastShowScale {
+            context.coordinator.lastShowScale = showScale
+            uiView.showsScale = showScale
+        }
+
+        if allowRotation != context.coordinator.lastAllowRotation {
+            context.coordinator.lastAllowRotation = allowRotation
+            uiView.isRotateEnabled = allowRotation
         }
     }
 
@@ -71,12 +119,18 @@ struct MapViewRepresentable: UIViewRepresentable {
         var fogRenderer: FogOverlayRenderer?
         var lastRenderGeneration: Int = 0
         var lastShowMapLabels: Bool = false
+        var lastMutedMapStyle: Bool = true
+        var lastShowTraffic: Bool = false
+        var lastShowScale: Bool = true
+        var lastAllowRotation: Bool = true
         var onCellTapped: ((GridCell) -> Void)?
         var compassTargetAnnotation: CompassTargetAnnotation?
+        var isFollowingUser: Binding<Bool>
 
-        init(gridEngine: GridEngine, onCellTapped: ((GridCell) -> Void)?) {
+        init(gridEngine: GridEngine, onCellTapped: ((GridCell) -> Void)?, isFollowingUser: Binding<Bool>) {
             self.gridEngine = gridEngine
             self.onCellTapped = onCellTapped
+            self.isFollowingUser = isFollowingUser
         }
 
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
@@ -101,6 +155,14 @@ struct MapViewRepresentable: UIViewRepresentable {
             } else if let existing = compassTargetAnnotation {
                 mapView.removeAnnotation(existing)
                 compassTargetAnnotation = nil
+            }
+        }
+
+        func mapView(_ mapView: MKMapView, didChange mode: MKUserTrackingMode, animated: Bool) {
+            if mode == .none {
+                DispatchQueue.main.async {
+                    self.isFollowingUser.wrappedValue = false
+                }
             }
         }
 
