@@ -37,6 +37,12 @@ struct CellInspectorView: View {
                 .accessibilityLabel("Close inspector")
             }
 
+            // Photos (top billing — "the star of the show")
+            if count > 0 {
+                CellPhotosView(cell: cell)
+                Divider()
+            }
+
             // Visit details
             if count > 0, let record = persistenceService?.fetchCell(key: cell.key) {
                 LabeledContent("Visits", value: "\(record.visitCount)")
@@ -62,12 +68,6 @@ struct CellInspectorView: View {
                 Text("Walk through this area to reveal it.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
-            }
-
-            // Photos
-            if count > 0 {
-                Divider()
-                CellPhotosView(cell: cell)
             }
 
             // Mark/unmark controls (only for explored cells)
