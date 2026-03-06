@@ -15,7 +15,6 @@ struct CellPhotosView: View {
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
     private let thumbSize = CGSize(width: 100, height: 100)
-    private let heroSize = CGSize(width: 300, height: 200)
 
     var body: some View {
         if !photoService.isAuthorized {
@@ -31,23 +30,12 @@ struct CellPhotosView: View {
                 .onAppear { loadAssets() }
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                // Hero image — first photo, full width
-                if let first = assets.first {
-                    heroView(for: first)
-                        .onTapGesture {
-                            loadFullImage(for: first)
-                        }
-                }
-
-                // Remaining thumbnails
-                if assets.count > 1 {
-                    LazyVGrid(columns: columns, spacing: 4) {
-                        ForEach(assets.dropFirst().prefix(8), id: \.localIdentifier) { asset in
-                            thumbnailView(for: asset)
-                                .onTapGesture {
-                                    loadFullImage(for: asset)
-                                }
-                        }
+                LazyVGrid(columns: columns, spacing: 4) {
+                    ForEach(assets.prefix(9), id: \.localIdentifier) { asset in
+                        thumbnailView(for: asset)
+                            .onTapGesture {
+                                loadFullImage(for: asset)
+                            }
                     }
                 }
 
@@ -140,33 +128,6 @@ struct CellPhotosView: View {
                     }
                 }
             }
-        }
-    }
-
-    @State private var heroThumbnail: UIImage?
-
-    @ViewBuilder
-    private func heroView(for asset: PHAsset) -> some View {
-        if let image = heroThumbnail {
-            Image(uiImage: image)
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(maxWidth: .infinity)
-                .frame(height: 180)
-                .clipped()
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-        } else {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(Color(.tertiarySystemGroupedBackground))
-                .frame(maxWidth: .infinity)
-                .frame(height: 180)
-                .onAppear {
-                    photoService.loadThumbnail(for: asset, size: heroSize) { image in
-                        if let image {
-                            heroThumbnail = image
-                        }
-                    }
-                }
         }
     }
 
