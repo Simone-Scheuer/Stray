@@ -13,6 +13,7 @@ struct CellPhotosView: View {
     @State private var showFullImage = false
     @State private var imageLoadFailed = false
     @State private var showShareSheet = false
+    @State private var dragOffset: CGFloat = 0
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
     private let thumbSize = CGSize(width: 80, height: 80)
@@ -93,20 +94,53 @@ struct CellPhotosView: View {
 
                         Spacer()
 
-                        // Centered photo with swipe
+                        // Centered photo with swipe animation
                         if let image = selectedImage {
                             Image(uiImage: image)
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                                 .padding(.horizontal, 4)
+                                .offset(x: dragOffset)
                                 .gesture(
-                                    DragGesture(minimumDistance: 50)
+                                    DragGesture(minimumDistance: 30)
+                                        .onChanged { value in
+                                            let canGoNext = selectedIndex < assets.count - 1
+                                            let canGoPrev = selectedIndex > 0
+                                            let tx = value.translation.width
+                                            if (tx < 0 && canGoNext) || (tx > 0 && canGoPrev) {
+                                                dragOffset = tx
+                                            } else {
+                                                dragOffset = tx * 0.3
+                                            }
+                                        }
                                         .onEnded { value in
-                                            if value.translation.width < -50 {
-                                                navigatePhoto(direction: 1)
-                                            } else if value.translation.width > 50 {
-                                                navigatePhoto(direction: -1)
+                                            if value.translation.width < -50, selectedIndex < assets.count - 1 {
+                                                withAnimation(.easeOut(duration: 0.2)) {
+                                                    dragOffset = -UIScreen.main.bounds.width
+                                                }
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                                    dragOffset = UIScreen.main.bounds.width
+                                                    navigatePhoto(direction: 1)
+                                                    withAnimation(.easeOut(duration: 0.2)) {
+                                                        dragOffset = 0
+                                                    }
+                                                }
+                                            } else if value.translation.width > 50, selectedIndex > 0 {
+                                                withAnimation(.easeOut(duration: 0.2)) {
+                                                    dragOffset = UIScreen.main.bounds.width
+                                                }
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                                    dragOffset = -UIScreen.main.bounds.width
+                                                    navigatePhoto(direction: -1)
+                                                    withAnimation(.easeOut(duration: 0.2)) {
+                                                        dragOffset = 0
+                                                    }
+                                                }
+                                            } else {
+                                                withAnimation(.easeOut(duration: 0.2)) {
+                                                    dragOffset = 0
+                                                }
                                             }
                                         }
                                 )
