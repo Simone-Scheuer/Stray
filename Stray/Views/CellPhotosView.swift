@@ -15,7 +15,7 @@ struct CellPhotosView: View {
     @State private var showShareSheet = false
     @State private var dragOffset: CGFloat = 0
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
+    private let columns = Array(repeating: GridItem(.fixed(80), spacing: 6), count: 3)
     private let thumbSize = CGSize(width: 80, height: 80)
 
     var body: some View {
