@@ -10,6 +10,7 @@ struct CellPhotosView: View {
     @State private var selectedImage: UIImage?
     @State private var showFullImage = false
     @State private var imageLoadFailed = false
+    @State private var showShareSheet = false
 
     private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
     private let thumbSize = CGSize(width: 100, height: 100)
@@ -77,17 +78,35 @@ struct CellPhotosView: View {
                         ProgressView()
                             .tint(.white)
                     }
-                    Button {
-                        showFullImage = false
-                        selectedImage = nil
-                        imageLoadFailed = false
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title)
-                            .foregroundStyle(.white.opacity(0.8))
-                            .padding(16)
+                    HStack(spacing: 12) {
+                        if selectedImage != nil {
+                            Button {
+                                showShareSheet = true
+                            } label: {
+                                Image(systemName: "square.and.arrow.up.circle.fill")
+                                    .font(.title)
+                                    .foregroundStyle(.white.opacity(0.8))
+                            }
+                            .accessibilityLabel("Share photo")
+                        }
+                        Button {
+                            showFullImage = false
+                            selectedImage = nil
+                            imageLoadFailed = false
+                            showShareSheet = false
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .font(.title)
+                                .foregroundStyle(.white.opacity(0.8))
+                        }
+                        .accessibilityLabel("Close preview")
                     }
-                    .accessibilityLabel("Close preview")
+                    .padding(16)
+                }
+                .sheet(isPresented: $showShareSheet) {
+                    if let image = selectedImage {
+                        ShareSheet(items: [image])
+                    }
                 }
             }
         }
@@ -179,4 +198,14 @@ struct CellPhotosView: View {
             }
         }
     }
+}
+
+private struct ShareSheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
