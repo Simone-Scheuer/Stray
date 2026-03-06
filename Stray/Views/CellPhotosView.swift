@@ -15,7 +15,7 @@ struct CellPhotosView: View {
     @State private var showShareSheet = false
     @State private var dragOffset: CGFloat = 0
 
-    private let columns = Array(repeating: GridItem(.fixed(80), spacing: 6), count: 3)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
     private let thumbSize = CGSize(width: 80, height: 80)
 
     var body: some View {
@@ -42,9 +42,12 @@ struct CellPhotosView: View {
                 }
 
                 if assets.count > 6 {
-                    Text("+\(assets.count - 6) more — tap any to browse")
+                    Text("+\(assets.count - 6) more")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.blue)
+                        .onTapGesture {
+                            loadFullImage(for: assets[6])
+                        }
                 }
             }
             .onAppear { loadAssets() }
