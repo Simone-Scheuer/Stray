@@ -245,6 +245,21 @@ final class PersistenceService {
         }
     }
 
+    func updateCellNotes(_ cell: GridCell, notes: String) {
+        let key = cell.key
+        let descriptor = FetchDescriptor<RevealedCell>(
+            predicate: #Predicate<RevealedCell> { $0.cellKey == key }
+        )
+        do {
+            if let record = try context.fetch(descriptor).first {
+                record.notes = notes
+                save()
+            }
+        } catch {
+            Self.logger.error("Failed to update notes for cell \(key, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     // MARK: - Special Tiles
 
     func saveSpecialTile(for cell: GridCell, label: String, icon: String, colorHex: String) {

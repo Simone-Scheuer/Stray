@@ -9,13 +9,15 @@ struct CellInspectorView: View {
     @State private var showMarkOptions = false
     @State private var showRemoveAlert = false
     @State private var customLabel = ""
+    @State private var cellNotes = ""
+    @FocusState private var isNotesFieldFocused: Bool
 
     var body: some View {
         let count = gridEngine.visitCount(for: cell)
         let specialTile = gridEngine.specialTile(for: cell)
 
-        VStack(alignment: .leading, spacing: 14) {
-            // Header
+        VStack(alignment: .leading, spacing: 0) {
+            // Header (pinned, never scrolls)
             HStack {
                 if let special = specialTile {
                     Label(special.label, systemImage: special.icon)
@@ -27,6 +29,7 @@ struct CellInspectorView: View {
                 }
                 Spacer()
                 Button {
+                    saveNotesIfNeeded()
                     gridEngine.setInspectedCell(nil)
                     dismiss()
                 } label: {
@@ -36,6 +39,10 @@ struct CellInspectorView: View {
                 }
                 .accessibilityLabel("Close inspector")
             }
+            .padding(.bottom, 14)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
 
             // Photos (top billing — "the star of the show")
             if count > 0 {
@@ -60,6 +67,16 @@ struct CellInspectorView: View {
                     .foregroundStyle(.secondary)
             }
 
+            // Notes (for explored cells)
+            if count > 0 {
+                Divider()
+                TextField("Add a note...", text: $cellNotes, axis: .vertical)
+                    .lineLimit(3...6)
+                    .textFieldStyle(.plain)
+                    .font(.callout)
+                    .focused($isNotesFieldFocused)
+            }
+
             // Mark/unmark controls (only for explored cells)
             if count > 0 {
                 Divider()
@@ -81,9 +98,21 @@ struct CellInspectorView: View {
                     }
                     .accessibilityLabel("Mark this tile as a special location")
                 }
+            } // if count > 0 (mark controls)
+                } // VStack inside ScrollView
+            } // ScrollView
+        } // outer VStack
+        .padding()
+        .onAppear {
+            if let record = persistenceService?.fetchCell(key: cell.key) {
+                cellNotes = record.notes
             }
         }
-        .padding()
+        .onChange(of: isNotesFieldFocused) { _, focused in
+            if !focused {
+                saveNotesIfNeeded()
+            }
+        }
         .alert("Remove Marker?", isPresented: $showRemoveAlert) {
             Button("Remove", role: .destructive) { removeMarker() }
             Button("Cancel", role: .cancel) {}
@@ -137,5 +166,12 @@ struct CellInspectorView: View {
     private func removeMarker() {
         persistenceService?.deleteSpecialTile(for: cell)
         gridEngine.setSpecialTile(nil, for: cell)
+    }
+
+    private func saveNotesIfNeeded() {
+        let trimmed = cellNotes.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let record = persistenceService?.fetchCell(key: cell.key), record.notes != trimmed {
+            persistenceService?.updateCellNotes(cell, notes: trimmed)
+        }
     }
 }

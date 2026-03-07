@@ -243,7 +243,7 @@ struct ContentView: View {
             gridEngine.setInspectedCell(nil)
         }) { cell in
             CellInspectorView(cell: cell)
-                .presentationDetents([.medium, .large])
+                .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
         .overlay(alignment: .bottom) {

@@ -10,6 +10,7 @@ final class RevealedCell {
     var lastVisitedAt: Date = Date()
     var visitCount: Int = 1
     var city: String? = nil
+    var notes: String = ""
 
     init(latIndex: Int, lngIndex: Int, cellKey: String, city: String? = nil) {
         self.latIndex = latIndex
