@@ -64,10 +64,6 @@ final class StraySessionViewModel {
         noTargetMessage = nil
 
         locationService.switchMode(active: true)
-
-        if let location = locationService.currentLocation {
-            updateCompass(from: location)
-        }
     }
 
     func pauseSession() {
@@ -75,8 +71,6 @@ final class StraySessionViewModel {
         isSessionPaused = true
         pauseStartTime = Date()
         locationService.switchMode(active: false)
-        gridEngine.setCompassTarget(nil)
-        distanceToTarget = nil
     }
 
     func resumeSession() {
@@ -87,10 +81,6 @@ final class StraySessionViewModel {
         pauseStartTime = nil
         isSessionPaused = false
         locationService.switchMode(active: true)
-
-        if let location = locationService.currentLocation {
-            updateCompass(from: location)
-        }
     }
 
     func endSession() {
@@ -102,8 +92,6 @@ final class StraySessionViewModel {
         isSessionActive = false
         isSessionPaused = false
         pauseStartTime = nil
-        gridEngine.setCompassTarget(nil)
-        distanceToTarget = nil
         locationService.switchMode(active: false)
 
         // Encode path data for persistence
@@ -139,21 +127,12 @@ final class StraySessionViewModel {
         distanceInSession += distance
         pathCoordinates.append(coordinate)
         pathPolyline = MKPolyline(coordinates: pathCoordinates, count: pathCoordinates.count)
-        updateCompass(from: coordinate)
     }
 
     /// Called when a new cell is revealed during a session
     func onCellRevealed() {
         guard isSessionActive, !isSessionPaused else { return }
         cellsRevealedInSession += 1
-        if let location = locationService.currentLocation {
-            // Check if the revealed cell was the beacon target before picking the next one
-            let revealedCell = GridCell.from(latitude: location.latitude, longitude: location.longitude)
-            if let target = gridEngine.compassTarget, target == revealedCell {
-                targetsReachedInSession += 1
-            }
-            updateCompass(from: location)
-        }
     }
 
     private func updateCompass(from location: CLLocationCoordinate2D) {

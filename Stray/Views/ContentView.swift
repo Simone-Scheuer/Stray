@@ -6,7 +6,6 @@ private struct SessionSnapshot {
     let cells: Int
     let distance: Double
     let steps: Int
-    let beacons: Int
 }
 
 struct ContentView: View {
@@ -39,7 +38,8 @@ struct ContentView: View {
     @State private var showPsychocachePrompt = false
     @State private var psychocacheDismissTask: Task<Void, Never>?
     @State private var showCamera = false
-    @State private var lastBeaconCount = 0
+    @State private var newCellBurst = 0
+    @State private var lastNewCellTime: Date?
 
     @State private var showPhotoMode = false
     @State private var showSplash = true
@@ -139,22 +139,7 @@ struct ContentView: View {
 
                     if let vm = sessionViewModel, vm.isSessionActive {
                         sessionHUD(vm: vm)
-
                         Spacer()
-
-                        if !vm.isSessionPaused {
-                            HStack {
-                                Spacer()
-                                StrayCompassView(
-                                    bearing: vm.compassBearing,
-                                    hasTarget: vm.hasCompassTarget,
-                                    noTargetMessage: vm.noTargetMessage,
-                                    distanceToTarget: vm.distanceToTarget
-                                )
-                                Spacer()
-                            }
-                            .padding(.bottom, 16)
-                        }
                     } else {
                         Spacer()
                     }
@@ -213,16 +198,26 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.4), value: showPsychocachePrompt)
-        .onChange(of: sessionViewModel?.targetsReachedInSession) { old, new in
-            guard let new, new > (old ?? 0) else { return }
-            lastBeaconCount = new
-            showPsychocachePrompt = true
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
-            psychocacheDismissTask?.cancel()
-            psychocacheDismissTask = Task {
-                try? await Task.sleep(for: .seconds(5))
-                if !Task.isCancelled {
-                    showPsychocachePrompt = false
+        .onChange(of: sessionViewModel?.cellsRevealedInSession) { old, new in
+            guard let new, new > (old ?? 0),
+                  let vm = sessionViewModel, vm.isSessionActive, !vm.isSessionPaused else { return }
+            let now = Date()
+            if let last = lastNewCellTime, now.timeIntervalSince(last) < 10 {
+                newCellBurst += 1
+            } else {
+                newCellBurst = 1
+            }
+            lastNewCellTime = now
+            if newCellBurst >= 3 && !showPsychocachePrompt {
+                newCellBurst = 0
+                showPsychocachePrompt = true
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                psychocacheDismissTask?.cancel()
+                psychocacheDismissTask = Task {
+                    try? await Task.sleep(for: .seconds(5))
+                    if !Task.isCancelled {
+                        showPsychocachePrompt = false
+                    }
                 }
             }
         }
@@ -285,8 +280,7 @@ struct ContentView: View {
                         duration: vm.elapsedSeconds,
                         cells: vm.cellsRevealedInSession,
                         distance: vm.distanceInSession,
-                        steps: vm.estimatedStepsInSession,
-                        beacons: vm.targetsReachedInSession
+                        steps: vm.estimatedStepsInSession
                     )
                     vm.endSession()
                     lastSession = snapshot
@@ -407,10 +401,6 @@ struct ContentView: View {
                 Label(formattedTime(vm.elapsedSeconds), systemImage: "clock")
                 Label("\(vm.cellsRevealedInSession)", systemImage: "square.grid.2x2")
                 Label(formattedDistance(vm.distanceInSession), systemImage: "figure.walk")
-                if vm.targetsReachedInSession > 0 {
-                    Label("\(vm.targetsReachedInSession)", systemImage: "mappin.circle.fill")
-                        .foregroundStyle(.red.opacity(0.9))
-                }
             }
             .font(.caption.monospacedDigit())
             .foregroundStyle(.white)
@@ -436,9 +426,6 @@ struct ContentView: View {
             }
             HStack(spacing: 20) {
                 summaryItem(icon: "shoeprints.fill", value: "\(snap.steps)")
-                if snap.beacons > 0 {
-                    summaryItem(icon: "mappin.circle.fill", value: "\(snap.beacons)", tint: .red.opacity(0.9))
-                }
             }
         }
         .padding(20)
