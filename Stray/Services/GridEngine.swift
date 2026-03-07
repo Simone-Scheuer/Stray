@@ -284,6 +284,35 @@ final class GridEngine {
         return tier(oldCount) != tier(newCount)
     }
 
+    // MARK: - Region Summaries (zoom-out pins)
+
+    /// Returns region centroids with cell counts for zoom-out pins.
+    /// Each entry represents a SpatialBucket (1° lat/lng) with at least 1 cell.
+    func regionSummaries() -> [(coordinate: CLLocationCoordinate2D, cellCount: Int)] {
+        let source = photoCells ?? timelineCells ?? revealedCells
+
+        var bucketCounts: [SpatialBucket: Int] = [:]
+        var bucketLatSum: [SpatialBucket: Double] = [:]
+        var bucketLngSum: [SpatialBucket: Double] = [:]
+
+        for (cell, _) in source {
+            let bucket = bucketFor(cell)
+            bucketCounts[bucket, default: 0] += 1
+            let coord = cell.coordinate
+            bucketLatSum[bucket, default: 0] += coord.latitude
+            bucketLngSum[bucket, default: 0] += coord.longitude
+        }
+
+        return bucketCounts.compactMap { (bucket, count) in
+            guard let latSum = bucketLatSum[bucket], let lngSum = bucketLngSum[bucket] else { return nil }
+            let centroid = CLLocationCoordinate2D(
+                latitude: latSum / Double(count),
+                longitude: lngSum / Double(count)
+            )
+            return (coordinate: centroid, cellCount: count)
+        }
+    }
+
     // MARK: - Spatial Index
 
     private func bucketFor(_ cell: GridCell) -> SpatialBucket {
