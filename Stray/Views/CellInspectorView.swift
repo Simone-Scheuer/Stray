@@ -52,6 +52,10 @@ struct CellInspectorView: View {
 
             // Visit details
             if count > 0, let record = persistenceService?.fetchCell(key: cell.key) {
+                if let city = record.city {
+                    LabeledContent("City", value: city)
+                        .accessibilityLabel("City: \(city)")
+                }
                 LabeledContent("Visits", value: "\(record.visitCount)")
                     .accessibilityLabel("\(record.visitCount) visits")
                 LabeledContent("First visited", value: record.firstVisitedAt.formatted(date: .abbreviated, time: .shortened))
