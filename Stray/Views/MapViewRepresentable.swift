@@ -11,8 +11,8 @@ struct MapViewRepresentable: UIViewRepresentable {
     var showMapLabels: Bool = false
     var mutedMapStyle: Bool = true
     var showTraffic: Bool = false
-    var showScale: Bool = true
     var allowRotation: Bool = true
+    var sessionPathPolyline: MKPolyline?
     @Binding var isFollowingUser: Bool
     var onCellTapped: ((GridCell) -> Void)?
 
@@ -26,7 +26,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         mapView.showsUserLocation = true
         mapView.isPitchEnabled = false
         mapView.showsCompass = false
-        mapView.showsScale = showScale
+        mapView.showsScale = false
         mapView.isRotateEnabled = allowRotation
 
         let config = MKStandardMapConfiguration(
@@ -101,14 +101,20 @@ struct MapViewRepresentable: UIViewRepresentable {
             uiView.preferredConfiguration = config
         }
 
-        if showScale != context.coordinator.lastShowScale {
-            context.coordinator.lastShowScale = showScale
-            uiView.showsScale = showScale
-        }
-
         if allowRotation != context.coordinator.lastAllowRotation {
             context.coordinator.lastAllowRotation = allowRotation
             uiView.isRotateEnabled = allowRotation
+        }
+
+        // Update session path polyline
+        if sessionPathPolyline !== context.coordinator.currentPathPolyline {
+            if let old = context.coordinator.currentPathPolyline {
+                uiView.removeOverlay(old)
+            }
+            if let newPath = sessionPathPolyline {
+                uiView.addOverlay(newPath, level: .aboveLabels)
+            }
+            context.coordinator.currentPathPolyline = sessionPathPolyline
         }
     }
 
@@ -121,10 +127,10 @@ struct MapViewRepresentable: UIViewRepresentable {
         var lastShowMapLabels: Bool = false
         var lastMutedMapStyle: Bool = true
         var lastShowTraffic: Bool = false
-        var lastShowScale: Bool = true
         var lastAllowRotation: Bool = true
         var onCellTapped: ((GridCell) -> Void)?
         var compassTargetAnnotation: CompassTargetAnnotation?
+        var currentPathPolyline: MKPolyline?
         var isFollowingUser: Binding<Bool>
 
         init(gridEngine: GridEngine, onCellTapped: ((GridCell) -> Void)?, isFollowingUser: Binding<Bool>) {
@@ -137,6 +143,14 @@ struct MapViewRepresentable: UIViewRepresentable {
             if let fogOverlay = overlay as? FogOverlay {
                 let renderer = FogOverlayRenderer(overlay: fogOverlay, gridEngine: gridEngine)
                 fogRenderer = renderer
+                return renderer
+            }
+            if let polyline = overlay as? MKPolyline {
+                let renderer = MKPolylineRenderer(polyline: polyline)
+                renderer.strokeColor = UIColor.white.withAlphaComponent(0.7)
+                renderer.lineWidth = 3
+                renderer.lineCap = .round
+                renderer.lineJoin = .round
                 return renderer
             }
             return MKOverlayRenderer(overlay: overlay)

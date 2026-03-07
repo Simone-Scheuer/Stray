@@ -183,7 +183,7 @@ final class PersistenceService {
     }
 
     /// Persists a completed Stray session
-    func saveStraySession(startedAt: Date, endedAt: Date, cellsRevealed: Int, distance: Double, duration: Double, pausedDuration: Double = 0) {
+    func saveStraySession(startedAt: Date, endedAt: Date, cellsRevealed: Int, distance: Double, duration: Double, pausedDuration: Double = 0, pathData: Data? = nil) {
         let session = StraySession()
         session.startedAt = startedAt
         session.endedAt = endedAt
@@ -191,6 +191,7 @@ final class PersistenceService {
         session.distanceMeters = distance
         session.durationSeconds = duration
         session.pausedDurationSeconds = pausedDuration
+        session.pathData = pathData
         context.insert(session)
         save()
     }

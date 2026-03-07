@@ -51,6 +51,7 @@ struct ContentView: View {
                 mutedMapStyle: mutedMapStyle,
                 showTraffic: showTraffic,
                 allowRotation: allowRotation,
+                sessionPathPolyline: sessionViewModel?.pathPolyline,
                 isFollowingUser: $isFollowingUser,
                 onCellTapped: { cell in
                     guard !showTimeline else { return }
