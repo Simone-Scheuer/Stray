@@ -35,26 +35,8 @@ struct TimelineOverlayView: View {
 
                 Spacer()
 
-                // Prev/Next nav
-                HStack(spacing: 16) {
-                    Button {
-                        guard let ps = persistenceService else { return }
-                        timelineVM.goBack(gridEngine: gridEngine, persistence: ps)
-                    } label: {
-                        Image(systemName: "chevron.left")
-                            .font(.title3)
-                    }
-                    .disabled(!timelineVM.canGoBack)
-
-                    Button {
-                        guard let ps = persistenceService else { return }
-                        timelineVM.goForward(gridEngine: gridEngine, persistence: ps)
-                    } label: {
-                        Image(systemName: "chevron.right")
-                            .font(.title3)
-                    }
-                    .disabled(!timelineVM.canGoForward)
-                }
+                // Spacer for symmetry with exit button
+                Color.clear.frame(width: 28, height: 28)
             }
             .padding(.horizontal, 20)
             .padding(.top, 16)
@@ -91,58 +73,28 @@ struct TimelineOverlayView: View {
                 .padding(.bottom, 10)
             }
 
-            // Day pill scrubber
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(Array(timelineVM.activeDays.enumerated()), id: \.offset) { index, day in
-                            let isSelected = index == timelineVM.selectedIndex
-                            Button {
-                                guard let ps = persistenceService else { return }
-                                timelineVM.selectIndex(index, gridEngine: gridEngine, persistence: ps)
-                            } label: {
-                                Text(timelineVM.pillLabel(for: day))
-                                    .font(.caption.weight(isSelected ? .semibold : .regular))
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background(isSelected ? Color.white.opacity(0.2) : Color.white.opacity(0.08))
-                                    .foregroundStyle(isSelected ? .white : .secondary)
-                                    .clipShape(Capsule())
-                                    .overlay(
-                                        Capsule().strokeBorder(
-                                            isSelected ? Color.white.opacity(0.5) : .clear,
-                                            lineWidth: 1
-                                        )
-                                    )
-                            }
-                            .id(index)
-                        }
+            // Timeline scrubber
+            if timelineVM.activeDays.count > 1 {
+                TimelineScrubber(
+                    dayCount: timelineVM.activeDays.count,
+                    selectedIndex: timelineVM.selectedIndex,
+                    labelForIndex: { index in
+                        guard index >= 0 && index < timelineVM.activeDays.count else { return "" }
+                        return timelineVM.pillLabel(for: timelineVM.activeDays[index])
+                    },
+                    onSelect: { index in
+                        guard let ps = persistenceService else { return }
+                        timelineVM.selectIndex(index, gridEngine: gridEngine, persistence: ps)
                     }
-                    .padding(.horizontal, 20)
-                }
-                .onChange(of: timelineVM.selectedIndex) { _, newIndex in
-                    withAnimation {
-                        proxy.scrollTo(newIndex, anchor: .center)
-                    }
-                }
+                )
+                .padding(.horizontal, 20)
+                .padding(.bottom, 8)
             }
-            .padding(.bottom, 8)
         }
         .background(.ultraThinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
         .padding(.horizontal, 12)
         .padding(.bottom, 16)
-        .gesture(
-            DragGesture(minimumDistance: 40, coordinateSpace: .local)
-                .onEnded { value in
-                    guard let ps = persistenceService else { return }
-                    if value.translation.width < -40 {
-                        timelineVM.goForward(gridEngine: gridEngine, persistence: ps)
-                    } else if value.translation.width > 40 {
-                        timelineVM.goBack(gridEngine: gridEngine, persistence: ps)
-                    }
-                }
-        )
         .onChange(of: timelineVM.selectedIndex) { _, _ in
             loadPhotosForSelectedDay()
         }
@@ -199,5 +151,101 @@ private struct TimelinePhotoThumbnail: View {
                 image = loaded
             }
         }
+    }
+}
+
+// MARK: - Timeline Scrubber
+
+private struct TimelineScrubber: View {
+    let dayCount: Int
+    let selectedIndex: Int
+    let labelForIndex: (Int) -> String
+    let onSelect: (Int) -> Void
+
+    @State private var isDragging = false
+    @State private var dragIndex: Int = 0
+
+    private let trackHeight: CGFloat = 4
+    private let thumbSize: CGFloat = 20
+
+    var body: some View {
+        VStack(spacing: 6) {
+            // Date label for current position
+            Text(labelForIndex(isDragging ? dragIndex : selectedIndex))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
+                .animation(.none, value: isDragging ? dragIndex : selectedIndex)
+
+            GeometryReader { geo in
+                let trackWidth = geo.size.width
+                let maxIndex = max(dayCount - 1, 1)
+
+                ZStack(alignment: .leading) {
+                    // Track background
+                    Capsule()
+                        .fill(Color.white.opacity(0.15))
+                        .frame(height: trackHeight)
+
+                    // Filled portion
+                    let currentIndex = isDragging ? dragIndex : selectedIndex
+                    let fillFraction = CGFloat(currentIndex) / CGFloat(maxIndex)
+                    Capsule()
+                        .fill(Color.white.opacity(0.4))
+                        .frame(width: max(trackHeight, fillFraction * trackWidth), height: trackHeight)
+
+                    // Tick marks at month boundaries
+                    ForEach(monthTickIndices(), id: \.self) { index in
+                        let x = CGFloat(index) / CGFloat(maxIndex) * trackWidth
+                        Circle()
+                            .fill(Color.white.opacity(0.3))
+                            .frame(width: 4, height: 4)
+                            .position(x: x, y: trackHeight / 2)
+                    }
+
+                    // Thumb
+                    let thumbX = CGFloat(isDragging ? dragIndex : selectedIndex) / CGFloat(maxIndex) * trackWidth
+                    Circle()
+                        .fill(.white)
+                        .frame(width: thumbSize, height: thumbSize)
+                        .shadow(color: .black.opacity(0.3), radius: 3, y: 1)
+                        .position(x: thumbX, y: trackHeight / 2)
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    isDragging = true
+                                    let fraction = max(0, min(1, value.location.x / trackWidth))
+                                    dragIndex = Int(round(fraction * CGFloat(maxIndex)))
+                                }
+                                .onEnded { _ in
+                                    isDragging = false
+                                    onSelect(dragIndex)
+                                }
+                        )
+                }
+                .frame(height: thumbSize)
+                .contentShape(Rectangle())
+                .onTapGesture { location in
+                    let fraction = max(0, min(1, location.x / trackWidth))
+                    let index = Int(round(fraction * CGFloat(maxIndex)))
+                    onSelect(index)
+                }
+            }
+            .frame(height: thumbSize)
+        }
+    }
+
+    private func monthTickIndices() -> [Int] {
+        guard dayCount > 7 else { return [] }
+        var ticks: [Int] = []
+        var lastMonth = ""
+        for i in 0..<dayCount {
+            let label = labelForIndex(i)
+            let month = String(label.prefix(3))
+            if month != lastMonth && i > 0 {
+                ticks.append(i)
+            }
+            lastMonth = month
+        }
+        return ticks
     }
 }
