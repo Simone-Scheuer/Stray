@@ -5,6 +5,7 @@ import UIKit
 @Observable
 final class StraySessionViewModel {
     private(set) var isSessionActive = false
+    private(set) var isSessionPaused = false
     private(set) var sessionStartTime: Date?
     private(set) var cellsRevealedInSession: Int = 0
     private(set) var distanceInSession: Double = 0.0
@@ -13,6 +14,8 @@ final class StraySessionViewModel {
     private(set) var noTargetMessage: String?
     private(set) var targetsReachedInSession: Int = 0
     private(set) var distanceToTarget: Double? = nil
+    private var pauseStartTime: Date?
+    private var accumulatedPausedTime: TimeInterval = 0
 
     private static let noTargetMessages = [
         "The familiar stretches in every direction",
@@ -35,7 +38,9 @@ final class StraySessionViewModel {
 
     var elapsedSeconds: TimeInterval {
         guard let start = sessionStartTime else { return 0 }
-        return Date().timeIntervalSince(start)
+        let total = Date().timeIntervalSince(start)
+        let currentPause = pauseStartTime.map { Date().timeIntervalSince($0) } ?? 0
+        return total - accumulatedPausedTime - currentPause
     }
 
     var estimatedStepsInSession: Int {
@@ -44,10 +49,13 @@ final class StraySessionViewModel {
 
     func startSession() {
         isSessionActive = true
+        isSessionPaused = false
         sessionStartTime = Date()
         cellsRevealedInSession = 0
         distanceInSession = 0
         targetsReachedInSession = 0
+        accumulatedPausedTime = 0
+        pauseStartTime = nil
         noTargetMessage = nil
 
         locationService.switchMode(active: true)
@@ -57,36 +65,69 @@ final class StraySessionViewModel {
         }
     }
 
+    func pauseSession() {
+        guard isSessionActive, !isSessionPaused else { return }
+        isSessionPaused = true
+        pauseStartTime = Date()
+        locationService.switchMode(active: false)
+        gridEngine.setCompassTarget(nil)
+        distanceToTarget = nil
+    }
+
+    func resumeSession() {
+        guard isSessionActive, isSessionPaused else { return }
+        if let pauseStart = pauseStartTime {
+            accumulatedPausedTime += Date().timeIntervalSince(pauseStart)
+        }
+        pauseStartTime = nil
+        isSessionPaused = false
+        locationService.switchMode(active: true)
+
+        if let location = locationService.currentLocation {
+            updateCompass(from: location)
+        }
+    }
+
     func endSession() {
         guard isSessionActive else { return }
+        // Finalize any active pause
+        if isSessionPaused, let pauseStart = pauseStartTime {
+            accumulatedPausedTime += Date().timeIntervalSince(pauseStart)
+        }
         isSessionActive = false
+        isSessionPaused = false
+        pauseStartTime = nil
         gridEngine.setCompassTarget(nil)
         distanceToTarget = nil
         locationService.switchMode(active: false)
 
         if let start = sessionStartTime {
+            let totalDuration = Date().timeIntervalSince(start)
+            let activeDuration = totalDuration - accumulatedPausedTime
             persistenceService?.saveStraySession(
                 startedAt: start,
                 endedAt: Date(),
                 cellsRevealed: cellsRevealedInSession,
                 distance: distanceInSession,
-                duration: Date().timeIntervalSince(start)
+                duration: activeDuration,
+                pausedDuration: accumulatedPausedTime
             )
         }
 
         sessionStartTime = nil
+        accumulatedPausedTime = 0
     }
 
     /// Called from the location pipeline when a new location arrives during a session
     func onSessionLocationUpdate(coordinate: CLLocationCoordinate2D, distance: Double) {
-        guard isSessionActive else { return }
+        guard isSessionActive, !isSessionPaused else { return }
         distanceInSession += distance
         updateCompass(from: coordinate)
     }
 
     /// Called when a new cell is revealed during a session
     func onCellRevealed() {
-        guard isSessionActive else { return }
+        guard isSessionActive, !isSessionPaused else { return }
         cellsRevealedInSession += 1
         if let location = locationService.currentLocation {
             // Check if the revealed cell was the beacon target before picking the next one

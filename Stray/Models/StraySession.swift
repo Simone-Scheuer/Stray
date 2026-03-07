@@ -8,6 +8,7 @@ final class StraySession {
     var cellsRevealedCount: Int = 0
     var distanceMeters: Double = 0.0
     var durationSeconds: Double = 0.0
+    var pausedDurationSeconds: Double = 0.0
     var pathData: Data? = nil
 
     init() {

@@ -17,7 +17,6 @@ struct ContentView: View {
     @AppStorage(Constants.showMapLabelsKey) private var showMapLabels = false
     @AppStorage(Constants.mutedMapStyleKey) private var mutedMapStyle = true
     @AppStorage(Constants.showTrafficKey) private var showTraffic = false
-    @AppStorage(Constants.showScaleKey) private var showScale = true
     @AppStorage(Constants.allowRotationKey) private var allowRotation = true
 
     @State private var showStats = false
@@ -51,7 +50,6 @@ struct ContentView: View {
                 showMapLabels: showMapLabels,
                 mutedMapStyle: mutedMapStyle,
                 showTraffic: showTraffic,
-                showScale: showScale,
                 allowRotation: allowRotation,
                 isFollowingUser: $isFollowingUser,
                 onCellTapped: { cell in
@@ -71,6 +69,17 @@ struct ContentView: View {
                         HStack(spacing: 12) {
                             if let vm = sessionViewModel {
                                 if vm.isSessionActive {
+                                    if vm.isSessionPaused {
+                                        iconButton(systemName: "play.fill", tint: .green.opacity(0.7), label: "Resume session") {
+                                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                            vm.resumeSession()
+                                        }
+                                    } else {
+                                        iconButton(systemName: "pause.fill", tint: .orange.opacity(0.7), label: "Pause session") {
+                                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                            vm.pauseSession()
+                                        }
+                                    }
                                     iconButton(systemName: "figure.walk.arrival", tint: .red.opacity(0.7), label: "End exploring session") {
                                         showEndSessionAlert = true
                                     }
@@ -131,17 +140,19 @@ struct ContentView: View {
 
                         Spacer()
 
-                        HStack {
-                            Spacer()
-                            StrayCompassView(
-                                bearing: vm.compassBearing,
-                                hasTarget: vm.hasCompassTarget,
-                                noTargetMessage: vm.noTargetMessage,
-                                distanceToTarget: vm.distanceToTarget
-                            )
-                            Spacer()
+                        if !vm.isSessionPaused {
+                            HStack {
+                                Spacer()
+                                StrayCompassView(
+                                    bearing: vm.compassBearing,
+                                    hasTarget: vm.hasCompassTarget,
+                                    noTargetMessage: vm.noTargetMessage,
+                                    distanceToTarget: vm.distanceToTarget
+                                )
+                                Spacer()
+                            }
+                            .padding(.bottom, 16)
                         }
-                        .padding(.bottom, 16)
                     } else {
                         Spacer()
                     }
@@ -360,6 +371,10 @@ struct ContentView: View {
     private func sessionHUD(vm: StraySessionViewModel) -> some View {
         TimelineView(.periodic(from: .now, by: 1.0)) { _ in
             HStack(spacing: 16) {
+                if vm.isSessionPaused {
+                    Text("Paused")
+                        .foregroundStyle(.orange)
+                }
                 Label(formattedTime(vm.elapsedSeconds), systemImage: "clock")
                 Label("\(vm.cellsRevealedInSession)", systemImage: "square.grid.2x2")
                 Label(formattedDistance(vm.distanceInSession), systemImage: "figure.walk")
@@ -374,7 +389,7 @@ struct ContentView: View {
             .padding(.vertical, 10)
             .background(.black.opacity(0.6), in: Capsule())
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Session: \(formattedTime(vm.elapsedSeconds)) elapsed, \(vm.cellsRevealedInSession) cells revealed, \(formattedDistance(vm.distanceInSession)) walked, \(vm.targetsReachedInSession) beacons reached")
+            .accessibilityLabel("Session\(vm.isSessionPaused ? " paused" : ""): \(formattedTime(vm.elapsedSeconds)) elapsed, \(vm.cellsRevealedInSession) cells revealed, \(formattedDistance(vm.distanceInSession)) walked")
         }
     }
 
