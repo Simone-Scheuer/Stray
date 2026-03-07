@@ -83,6 +83,19 @@ final class FogOverlayRenderer: MKOverlayRenderer {
 
         // Soft fog edges: draw gradient strips on edges that border unrevealed cells
         drawFogEdgeGradients(cells: cells, revealedSet: revealedSet, in: context)
+
+        // Cell clearing animation: recently revealed cells show residual fog that fades out
+        let now = Date()
+        let animationDuration: TimeInterval = 0.3
+        for (cell, revealTime) in gridEngine.recentlyRevealedCells {
+            let age = now.timeIntervalSince(revealTime)
+            guard age < animationDuration else { continue }
+            let progress = age / animationDuration
+            let fogAlpha = (1.0 - progress) * Double(Constants.fogColor.cgColor.alpha)
+            let cellRect = cellScreenRect(for: cell)
+            context.setFillColor(Constants.fogColor.withAlphaComponent(fogAlpha).cgColor)
+            context.fill(cellRect)
+        }
     }
 
     private func cellScreenRect(for cell: GridCell) -> CGRect {

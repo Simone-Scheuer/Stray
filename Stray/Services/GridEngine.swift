@@ -18,6 +18,7 @@ final class GridEngine {
     private(set) var photoCells: [GridCell: Int]? = nil
     private(set) var compassTarget: GridCell? = nil
     private(set) var inspectedCell: GridCell? = nil
+    private(set) var recentlyRevealedCells: [GridCell: Date] = [:]
     private var spatialIndex: [SpatialBucket: [GridCell]] = [:]
 
     /// Incremented only when tiles actually need re-rendering (throttled).
@@ -47,7 +48,9 @@ final class GridEngine {
             revealedCells[cell] = 1
             lastVisitTimes[cell] = now
             addToSpatialIndex(cell)
+            recentlyRevealedCells[cell] = now
             markDirty()
+            scheduleClearingAnimation()
             return .newCell(cell)
         }
 
@@ -69,6 +72,27 @@ final class GridEngine {
 
     func forceRender() {
         renderGeneration += 1
+    }
+
+    func pruneRecentlyRevealed() {
+        let cutoff = Date().addingTimeInterval(-0.4)
+        recentlyRevealedCells = recentlyRevealedCells.filter { $0.value > cutoff }
+    }
+
+    private var clearingAnimationTask: Task<Void, Never>?
+
+    private func scheduleClearingAnimation() {
+        guard clearingAnimationTask == nil else { return }
+        clearingAnimationTask = Task { @MainActor [weak self] in
+            // Trigger redraws at ~20fps for 300ms
+            for _ in 0..<6 {
+                try? await Task.sleep(for: .milliseconds(50))
+                guard let self, !Task.isCancelled else { break }
+                self.renderGeneration += 1
+            }
+            self?.pruneRecentlyRevealed()
+            self?.clearingAnimationTask = nil
+        }
     }
 
     /// Reveals a block of cells around a coordinate. Used on boot to establish the user's starting area.
