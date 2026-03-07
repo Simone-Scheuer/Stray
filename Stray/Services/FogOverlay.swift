@@ -96,6 +96,35 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             context.setFillColor(Constants.fogColor.withAlphaComponent(fogAlpha).cgColor)
             context.fill(cellRect)
         }
+
+        // Photo dots: small circles at cell centers for cells with geotagged photos
+        if gridEngine.photoCells == nil, let photoDots = gridEngine.photoDotsData {
+            context.setBlendMode(.normal)
+            context.setFillColor(Constants.photoDotColor.cgColor)
+            for (cell, photoCount) in photoDots {
+                let coord = cell.coordinate
+                guard coord.latitude >= region.center.latitude - region.span.latitudeDelta
+                        && coord.latitude <= region.center.latitude + region.span.latitudeDelta
+                        && coord.longitude >= region.center.longitude - region.span.longitudeDelta
+                        && coord.longitude <= region.center.longitude + region.span.longitudeDelta else {
+                    continue
+                }
+                let cellRect = cellScreenRect(for: cell)
+                let dotRadius: CGFloat
+                switch photoCount {
+                case 1: dotRadius = max(cellRect.width * 0.08, 2)
+                case 2...4: dotRadius = max(cellRect.width * 0.12, 3)
+                default: dotRadius = max(cellRect.width * 0.16, 4)
+                }
+                let center = CGPoint(x: cellRect.midX, y: cellRect.midY)
+                context.fillEllipse(in: CGRect(
+                    x: center.x - dotRadius,
+                    y: center.y - dotRadius,
+                    width: dotRadius * 2,
+                    height: dotRadius * 2
+                ))
+            }
+        }
     }
 
     private func cellScreenRect(for cell: GridCell) -> CGRect {

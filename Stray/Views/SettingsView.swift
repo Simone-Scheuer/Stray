@@ -8,8 +8,8 @@ struct SettingsView: View {
     @AppStorage(Constants.showMapLabelsKey) private var showMapLabels = false
     @AppStorage(Constants.mutedMapStyleKey) private var mutedMapStyle = true
     @AppStorage(Constants.showTrafficKey) private var showTraffic = false
-    @AppStorage(Constants.showScaleKey) private var showScale = true
     @AppStorage(Constants.allowRotationKey) private var allowRotation = true
+    @AppStorage(Constants.showPhotoDotsKey) private var showPhotoDots = true
 
     var body: some View {
         NavigationStack {
@@ -58,8 +58,10 @@ struct SettingsView: View {
             Toggle("Muted Style", isOn: $mutedMapStyle)
             Toggle("Show Labels", isOn: $showMapLabels)
             Toggle("Show Traffic", isOn: $showTraffic)
-            Toggle("Show Scale", isOn: $showScale)
             Toggle("Allow Rotation", isOn: $allowRotation)
+            if photoService.isAuthorized {
+                Toggle("Show Photo Markers", isOn: $showPhotoDots)
+            }
         } header: {
             Text("Map")
         } footer: {

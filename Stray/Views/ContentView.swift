@@ -18,6 +18,7 @@ struct ContentView: View {
     @AppStorage(Constants.mutedMapStyleKey) private var mutedMapStyle = true
     @AppStorage(Constants.showTrafficKey) private var showTraffic = false
     @AppStorage(Constants.allowRotationKey) private var allowRotation = true
+    @AppStorage(Constants.showPhotoDotsKey) private var showPhotoDots = true
 
     @State private var showStats = false
     @State private var showSettings = false
@@ -304,6 +305,13 @@ struct ContentView: View {
             #if DEBUG && targetEnvironment(simulator)
             gridEngine.addTestCells()
             #endif
+            refreshPhotoDots()
+        }
+        .onChange(of: showPhotoDots) { _, _ in
+            refreshPhotoDots()
+        }
+        .onChange(of: photoService.scanComplete) { _, _ in
+            refreshPhotoDots()
         }
         .overlay {
             if showSplash {
@@ -335,6 +343,23 @@ struct ContentView: View {
     private func exitPhotoMode() {
         gridEngine.exitPhotoMode()
         showPhotoMode = false
+    }
+
+    private func refreshPhotoDots() {
+        guard showPhotoDots, photoService.isAuthorized, photoService.scanComplete else {
+            gridEngine.clearPhotoDots()
+            return
+        }
+        var dots: [GridCell: Int] = [:]
+        for cell in photoService.cellsWithPhotos {
+            guard gridEngine.isRevealed(cell) else { continue }
+            dots[cell] = photoService.photoCount(for: cell)
+        }
+        if dots.isEmpty {
+            gridEngine.clearPhotoDots()
+        } else {
+            gridEngine.updatePhotoDots(dots)
+        }
     }
 
     // MARK: - Timeline

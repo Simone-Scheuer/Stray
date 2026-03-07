@@ -16,6 +16,7 @@ final class GridEngine {
     private(set) var specialTiles: [GridCell: SpecialTile] = [:]
     private(set) var timelineCells: [GridCell: Int]? = nil
     private(set) var photoCells: [GridCell: Int]? = nil
+    private(set) var photoDotsData: [GridCell: Int]? = nil
     private(set) var compassTarget: GridCell? = nil
     private(set) var inspectedCell: GridCell? = nil
     private(set) var recentlyRevealedCells: [GridCell: Date] = [:]
@@ -192,6 +193,19 @@ final class GridEngine {
 
     func exitPhotoMode() {
         photoCells = nil
+        renderGeneration += 1
+    }
+
+    // MARK: - Photo Dots
+
+    func updatePhotoDots(_ data: [GridCell: Int]) {
+        photoDotsData = data
+        renderGeneration += 1
+    }
+
+    func clearPhotoDots() {
+        guard photoDotsData != nil else { return }
+        photoDotsData = nil
         renderGeneration += 1
     }
 

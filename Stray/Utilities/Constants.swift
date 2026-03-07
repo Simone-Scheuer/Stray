@@ -45,9 +45,12 @@ enum Constants {
     static let showMapLabelsKey = "showMapLabels"
     static let mutedMapStyleKey = "mutedMapStyle"
     static let showTrafficKey = "showTraffic"
-    static let showScaleKey = "showScale"
     static let allowRotationKey = "allowRotation"
     static let hasCompletedPhotoScanKey = "hasCompletedPhotoScan"
+    static let showPhotoDotsKey = "showPhotoDots"
+
+    // Photo dot overlay color (muted purple)
+    static let photoDotColor = UIColor(red: 0.60, green: 0.35, blue: 0.85, alpha: 0.80)
 
     // Photo density gradient colors (purple/magenta spectrum)
     static let photoDensityFaint = UIColor(red: 0.55, green: 0.30, blue: 0.85, alpha: 0.30)    // 1 photo
