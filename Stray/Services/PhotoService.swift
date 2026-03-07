@@ -98,6 +98,29 @@ final class PhotoService: NSObject, PHPhotoLibraryChangeObserver {
         return PHAsset.fetchAssets(withLocalIdentifiers: identifiers, options: options)
     }
 
+    /// Returns geotagged photo assets for a specific date (yyyy-MM-dd format)
+    func photosForDate(_ dateString: String) -> [PHAsset] {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        guard let startOfDay = formatter.date(from: dateString) else { return [] }
+        guard let endOfDay = Calendar.current.date(byAdding: .day, value: 1, to: startOfDay) else { return [] }
+
+        let options = PHFetchOptions()
+        options.predicate = NSPredicate(format: "creationDate >= %@ AND creationDate < %@", startOfDay as NSDate, endOfDay as NSDate)
+        options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
+
+        let result = PHAsset.fetchAssets(with: .image, options: options)
+        var assets: [PHAsset] = []
+        result.enumerateObjects { asset, _, _ in
+            if asset.location != nil {
+                assets.append(asset)
+            }
+        }
+        return assets
+    }
+
     // MARK: - Thumbnails
 
     func loadThumbnail(for asset: PHAsset, size: CGSize, completion: @escaping @MainActor (UIImage?) -> Void) {

@@ -1,11 +1,16 @@
 import SwiftUI
+import Photos
 
 struct TimelineOverlayView: View {
     @Bindable var timelineVM: TimelineViewModel
     let onExit: () -> Void
+    var onCenterCell: ((GridCell) -> Void)?
 
     @Environment(\.gridEngine) var gridEngine
     @Environment(\.persistenceService) var persistenceService
+    @Environment(\.photoService) var photoService
+
+    @State private var dayPhotos: [PHAsset] = []
 
     var body: some View {
         VStack(spacing: 0) {
@@ -65,6 +70,27 @@ struct TimelineOverlayView: View {
                 .padding(.bottom, 14)
             }
 
+            // Photo strip for selected day
+            if !dayPhotos.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(dayPhotos, id: \.localIdentifier) { asset in
+                            TimelinePhotoThumbnail(asset: asset, photoService: photoService) {
+                                if let location = asset.location {
+                                    let cell = GridCell.from(
+                                        latitude: location.coordinate.latitude,
+                                        longitude: location.coordinate.longitude
+                                    )
+                                    onCenterCell?(cell)
+                                }
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                }
+                .padding(.bottom, 10)
+            }
+
             // Day pill scrubber
             ScrollViewReader { proxy in
                 ScrollView(.horizontal, showsIndicators: false) {
@@ -117,6 +143,20 @@ struct TimelineOverlayView: View {
                     }
                 }
         )
+        .onChange(of: timelineVM.selectedIndex) { _, _ in
+            loadPhotosForSelectedDay()
+        }
+        .onAppear {
+            loadPhotosForSelectedDay()
+        }
+    }
+
+    private func loadPhotosForSelectedDay() {
+        guard let day = timelineVM.selectedDay else {
+            dayPhotos = []
+            return
+        }
+        dayPhotos = photoService.photosForDate(day.dateString)
     }
 
     private func statChip(icon: String, value: String, label: String) -> some View {
@@ -126,6 +166,38 @@ struct TimelineOverlayView: View {
             Text(label)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+// MARK: - Photo Thumbnail
+
+private struct TimelinePhotoThumbnail: View {
+    let asset: PHAsset
+    let photoService: PhotoService
+    let onTap: () -> Void
+
+    @State private var image: UIImage?
+
+    var body: some View {
+        Button(action: onTap) {
+            Group {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } else {
+                    Rectangle()
+                        .fill(Color.white.opacity(0.1))
+                }
+            }
+            .frame(width: 52, height: 52)
+            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .onAppear {
+            photoService.loadThumbnail(for: asset, size: CGSize(width: 52, height: 52)) { loaded in
+                image = loaded
+            }
         }
     }
 }

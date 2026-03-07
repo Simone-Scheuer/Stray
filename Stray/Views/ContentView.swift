@@ -166,7 +166,10 @@ struct ContentView: View {
             if showTimeline {
                 VStack {
                     Spacer()
-                    TimelineOverlayView(timelineVM: timelineVM, onExit: exitTimeline)
+                    TimelineOverlayView(timelineVM: timelineVM, onExit: exitTimeline, onCenterCell: { cell in
+                        inspectedCell = cell
+                        gridEngine.setInspectedCell(cell)
+                    })
                         .environment(\.gridEngine, gridEngine)
                         .environment(\.persistenceService, persistenceService)
                 }
