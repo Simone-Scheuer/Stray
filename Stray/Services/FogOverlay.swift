@@ -47,23 +47,10 @@ final class FogOverlayRenderer: MKOverlayRenderer {
         )
 
         let cells = gridEngine.cellsWithCounts(in: paddedRegion)
+        let revealedSet = Set(cells.map { $0.0 })
 
         for (cell, count) in cells {
-            let sw = cell.coordinate
-            let neLat = sw.latitude + GridCell.latStep
-            let neLng = sw.longitude + GridCell.lngStep(atLatitude: sw.latitude)
-
-            let swPoint = MKMapPoint(CLLocationCoordinate2D(latitude: sw.latitude, longitude: sw.longitude))
-            let nePoint = MKMapPoint(CLLocationCoordinate2D(latitude: neLat, longitude: neLng))
-
-            let cellMapRect = MKMapRect(
-                x: min(swPoint.x, nePoint.x),
-                y: min(swPoint.y, nePoint.y),
-                width: abs(nePoint.x - swPoint.x),
-                height: abs(nePoint.y - swPoint.y)
-            )
-
-            let cellRect = rect(for: cellMapRect)
+            let cellRect = cellScreenRect(for: cell)
 
             // Punch hole in fog
             context.setBlendMode(.clear)
@@ -91,6 +78,72 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             if gridEngine.inspectedCell == cell {
                 context.setFillColor(UIColor.white.withAlphaComponent(0.35).cgColor)
                 context.fill(cellRect)
+            }
+        }
+
+        // Soft fog edges: draw gradient strips on edges that border unrevealed cells
+        drawFogEdgeGradients(cells: cells, revealedSet: revealedSet, in: context)
+    }
+
+    private func cellScreenRect(for cell: GridCell) -> CGRect {
+        let sw = cell.coordinate
+        let neLat = sw.latitude + GridCell.latStep
+        let neLng = sw.longitude + GridCell.lngStep(atLatitude: sw.latitude)
+
+        let swPoint = MKMapPoint(CLLocationCoordinate2D(latitude: sw.latitude, longitude: sw.longitude))
+        let nePoint = MKMapPoint(CLLocationCoordinate2D(latitude: neLat, longitude: neLng))
+
+        let cellMapRect = MKMapRect(
+            x: min(swPoint.x, nePoint.x),
+            y: min(swPoint.y, nePoint.y),
+            width: abs(nePoint.x - swPoint.x),
+            height: abs(nePoint.y - swPoint.y)
+        )
+
+        return rect(for: cellMapRect)
+    }
+
+    private func drawFogEdgeGradients(cells: [(GridCell, Int)], revealedSet: Set<GridCell>, in context: CGContext) {
+        let fogCG = Constants.fogColor.cgColor
+        let clearFog = Constants.fogColor.withAlphaComponent(0).cgColor
+        guard let gradient = CGGradient(
+            colorsSpace: CGColorSpaceCreateDeviceRGB(),
+            colors: [clearFog, fogCG] as CFArray,
+            locations: [0.0, 1.0]
+        ) else { return }
+
+        for (cell, _) in cells {
+            let cellRect = cellScreenRect(for: cell)
+            let feather = min(cellRect.width, cellRect.height) * 0.2
+
+            let neighbors = cell.neighbors
+            // North edge (top of screen = min Y in CG, but MKMapPoint Y increases going north = decreasing screen Y)
+            if !revealedSet.contains(neighbors.north) {
+                context.saveGState()
+                context.clip(to: CGRect(x: cellRect.minX, y: cellRect.minY, width: cellRect.width, height: feather))
+                context.drawLinearGradient(gradient, start: CGPoint(x: cellRect.midX, y: cellRect.minY + feather), end: CGPoint(x: cellRect.midX, y: cellRect.minY), options: [])
+                context.restoreGState()
+            }
+            // South edge
+            if !revealedSet.contains(neighbors.south) {
+                context.saveGState()
+                context.clip(to: CGRect(x: cellRect.minX, y: cellRect.maxY - feather, width: cellRect.width, height: feather))
+                context.drawLinearGradient(gradient, start: CGPoint(x: cellRect.midX, y: cellRect.maxY - feather), end: CGPoint(x: cellRect.midX, y: cellRect.maxY), options: [])
+                context.restoreGState()
+            }
+            // West edge
+            if !revealedSet.contains(neighbors.west) {
+                context.saveGState()
+                context.clip(to: CGRect(x: cellRect.minX, y: cellRect.minY, width: feather, height: cellRect.height))
+                context.drawLinearGradient(gradient, start: CGPoint(x: cellRect.minX + feather, y: cellRect.midY), end: CGPoint(x: cellRect.minX, y: cellRect.midY), options: [])
+                context.restoreGState()
+            }
+            // East edge
+            if !revealedSet.contains(neighbors.east) {
+                context.saveGState()
+                context.clip(to: CGRect(x: cellRect.maxX - feather, y: cellRect.minY, width: feather, height: cellRect.height))
+                context.drawLinearGradient(gradient, start: CGPoint(x: cellRect.maxX - feather, y: cellRect.midY), end: CGPoint(x: cellRect.maxX, y: cellRect.midY), options: [])
+                context.restoreGState()
             }
         }
     }

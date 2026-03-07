@@ -37,4 +37,20 @@ struct GridCell: Hashable, Codable, Sendable, Identifiable {
     }
 
     var key: String { "\(latIndex)_\(lngIndex)" }
+
+    struct Neighbors {
+        let north: GridCell
+        let south: GridCell
+        let east: GridCell
+        let west: GridCell
+    }
+
+    var neighbors: Neighbors {
+        Neighbors(
+            north: GridCell(latIndex: latIndex + 1, lngIndex: lngIndex),
+            south: GridCell(latIndex: latIndex - 1, lngIndex: lngIndex),
+            east: GridCell(latIndex: latIndex, lngIndex: lngIndex + 1),
+            west: GridCell(latIndex: latIndex, lngIndex: lngIndex - 1)
+        )
+    }
 }
