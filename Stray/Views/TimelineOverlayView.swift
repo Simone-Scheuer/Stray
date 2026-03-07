@@ -164,9 +164,12 @@ private struct TimelineScrubber: View {
 
     @State private var isDragging = false
     @State private var dragIndex: Int = 0
+    @State private var lastFiredIndex: Int = -1
+    @State private var lastFireTime: Date = .distantPast
 
     private let trackHeight: CGFloat = 4
     private let thumbSize: CGFloat = 20
+    private let scrubThrottleInterval: TimeInterval = 0.1
 
     var body: some View {
         VStack(spacing: 6) {
@@ -214,11 +217,21 @@ private struct TimelineScrubber: View {
                                 .onChanged { value in
                                     isDragging = true
                                     let fraction = max(0, min(1, value.location.x / trackWidth))
-                                    dragIndex = Int(round(fraction * CGFloat(maxIndex)))
+                                    let newIndex = Int(round(fraction * CGFloat(maxIndex)))
+                                    dragIndex = newIndex
+                                    let now = Date()
+                                    if newIndex != lastFiredIndex && now.timeIntervalSince(lastFireTime) >= scrubThrottleInterval {
+                                        lastFiredIndex = newIndex
+                                        lastFireTime = now
+                                        onSelect(newIndex)
+                                    }
                                 }
                                 .onEnded { _ in
                                     isDragging = false
-                                    onSelect(dragIndex)
+                                    if dragIndex != lastFiredIndex {
+                                        lastFiredIndex = dragIndex
+                                        onSelect(dragIndex)
+                                    }
                                 }
                         )
                 }
