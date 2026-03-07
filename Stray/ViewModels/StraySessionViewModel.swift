@@ -20,6 +20,8 @@ final class StraySessionViewModel {
     private var pauseStartTime: Date?
     private var accumulatedPausedTime: TimeInterval = 0
 
+    private static let maxPathCoordinates = 10_000
+
     private static let noTargetMessages = [
         "The familiar stretches in every direction",
         "No uncharted ground nearby — wander further",
@@ -126,6 +128,9 @@ final class StraySessionViewModel {
         guard isSessionActive, !isSessionPaused else { return }
         distanceInSession += distance
         pathCoordinates.append(coordinate)
+        if pathCoordinates.count > Self.maxPathCoordinates {
+            pathCoordinates = stride(from: 0, to: pathCoordinates.count, by: 2).map { pathCoordinates[$0] }
+        }
         pathPolyline = MKPolyline(coordinates: pathCoordinates, count: pathCoordinates.count)
     }
 

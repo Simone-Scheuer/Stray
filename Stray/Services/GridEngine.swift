@@ -171,7 +171,13 @@ final class GridEngine {
 
     func loadCells(from context: ModelContext) {
         let descriptor = FetchDescriptor<RevealedCell>()
-        guard let cells = try? context.fetch(descriptor) else { return }
+        let cells: [RevealedCell]
+        do {
+            cells = try context.fetch(descriptor)
+        } catch {
+            print("[GridEngine] Failed to load cells: \(error)")
+            return
+        }
         revealedCells.removeAll(keepingCapacity: true)
         lastVisitTimes.removeAll(keepingCapacity: true)
         spatialIndex.removeAll(keepingCapacity: true)
@@ -237,7 +243,13 @@ final class GridEngine {
 
     func loadSpecialTiles(from context: ModelContext) {
         let descriptor = FetchDescriptor<SpecialTile>()
-        guard let tiles = try? context.fetch(descriptor) else { return }
+        let tiles: [SpecialTile]
+        do {
+            tiles = try context.fetch(descriptor)
+        } catch {
+            print("[GridEngine] Failed to load special tiles: \(error)")
+            return
+        }
         specialTiles.removeAll(keepingCapacity: true)
         for tile in tiles {
             let cell = GridCell(latIndex: tile.latIndex, lngIndex: tile.lngIndex)

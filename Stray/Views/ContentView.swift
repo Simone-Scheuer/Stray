@@ -17,7 +17,7 @@ struct ContentView: View {
     @AppStorage(Constants.mutedMapStyleKey) private var mutedMapStyle = true
     @AppStorage(Constants.showTrafficKey) private var showTraffic = false
     @AppStorage(Constants.allowRotationKey) private var allowRotation = true
-    @AppStorage(Constants.showPhotoDotsKey) private var showPhotoDots = true
+    @AppStorage(Constants.showPhotoDotsKey) private var showPhotoDots = false
 
     @State private var showStats = false
     @State private var showSettings = false

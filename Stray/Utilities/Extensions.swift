@@ -23,6 +23,8 @@ private struct StraySessionViewModelKey: EnvironmentKey {
 private struct PhotoServiceKey: EnvironmentKey {
     @MainActor static let defaultValue = PhotoService()
 }
+// Silence Swift 6 warning — EnvironmentKey.defaultValue is accessed on MainActor in practice
+extension PhotoServiceKey: @unchecked Sendable {}
 
 private struct StatsViewModelKey: EnvironmentKey {
     static let defaultValue = StatsViewModel()

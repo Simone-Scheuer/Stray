@@ -276,6 +276,8 @@ struct MapViewRepresentable: UIViewRepresentable {
                 view.addSubview(badge)
                 view.frame = badge.frame
                 view.centerOffset = .zero
+                view.displayPriority = .required
+                view.zPriority = .max
                 return view
             }
 
@@ -328,6 +330,7 @@ struct MapViewRepresentable: UIViewRepresentable {
 
         @objc func handleMapTap(_ gesture: UITapGestureRecognizer) {
             guard let mapView = gesture.view as? MKMapView else { return }
+            guard !lastShowRegionPins else { return }
             let point = gesture.location(in: mapView)
             let coordinate = mapView.convert(point, toCoordinateFrom: mapView)
             let cell = GridCell.from(latitude: coordinate.latitude, longitude: coordinate.longitude)

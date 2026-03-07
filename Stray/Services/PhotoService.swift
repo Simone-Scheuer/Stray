@@ -14,6 +14,7 @@ final class PhotoService: NSObject, PHPhotoLibraryChangeObserver {
     private let imageManager = PHCachingImageManager()
     private var hasRegisteredObserver = false
     private var rescanTask: Task<Void, Never>?
+    private var scanTask: Task<Void, Never>?
 
     override init() {
         super.init()
@@ -51,7 +52,8 @@ final class PhotoService: NSObject, PHPhotoLibraryChangeObserver {
         guard isAuthorized, !isScanning else { return }
         isScanning = true
 
-        Task.detached(priority: .utility) {
+        scanTask?.cancel()
+        scanTask = Task.detached(priority: .utility) {
             var newIndex: [GridCell: [String]] = [:]
             var count = 0
 
@@ -60,7 +62,13 @@ final class PhotoService: NSObject, PHPhotoLibraryChangeObserver {
             options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
 
             let result = PHAsset.fetchAssets(with: .image, options: options)
-            result.enumerateObjects { asset, _, _ in
+            var cancelled = false
+            result.enumerateObjects { asset, _, stop in
+                if Task.isCancelled {
+                    stop.pointee = true
+                    cancelled = true
+                    return
+                }
                 guard let location = asset.location else { return }
                 let cell = GridCell.from(
                     latitude: location.coordinate.latitude,
@@ -68,6 +76,11 @@ final class PhotoService: NSObject, PHPhotoLibraryChangeObserver {
                 )
                 newIndex[cell, default: []].append(asset.localIdentifier)
                 count += 1
+            }
+
+            guard !cancelled else {
+                await MainActor.run { self.isScanning = false }
+                return
             }
 
             await MainActor.run { [newIndex, count] in

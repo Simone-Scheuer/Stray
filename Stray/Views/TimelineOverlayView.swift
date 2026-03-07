@@ -199,7 +199,7 @@ private struct TimelineScrubber: View {
                         Circle()
                             .fill(Color.white.opacity(0.3))
                             .frame(width: 4, height: 4)
-                            .position(x: x, y: trackHeight / 2)
+                            .position(x: x, y: thumbSize / 2)
                     }
 
                     // Thumb
@@ -208,7 +208,7 @@ private struct TimelineScrubber: View {
                         .fill(.white)
                         .frame(width: thumbSize, height: thumbSize)
                         .shadow(color: .black.opacity(0.3), radius: 3, y: 1)
-                        .position(x: thumbX, y: trackHeight / 2)
+                        .position(x: thumbX, y: thumbSize / 2)
                         .gesture(
                             DragGesture(minimumDistance: 0)
                                 .onChanged { value in

@@ -37,6 +37,7 @@ struct StrayApp: App {
         persistence.deduplicateCells()
         persistence.deduplicateSpecialTiles()
         persistence.fixupDailySummaryActiveFlags()
+        persistence.backfillMissingCities()
         grid.loadCells(from: context)
         grid.loadSpecialTiles(from: context)
 
@@ -95,6 +96,8 @@ struct StrayApp: App {
 
             if isNew {
                 UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+                persistence.detectCity(for: cell, at: coordinate)
+            } else if persistence.fetchCell(key: cell.key)?.city == nil {
                 persistence.detectCity(for: cell, at: coordinate)
             }
 

@@ -23,12 +23,20 @@ final class FogOverlayRenderer: MKOverlayRenderer {
     override func draw(_ mapRect: MKMapRect, zoomScale: MKZoomScale, in context: CGContext) {
         let drawRect = rect(for: mapRect)
 
-        // Fill entire draw rect with fog
-        context.setFillColor(Constants.fogColor.cgColor)
-        context.fill(drawRect)
-
         // Convert mapRect to coordinate region for spatial query
         let region = MKCoordinateRegion(mapRect)
+
+        // Smooth fog fade using zoomScale (consistent across all tiles at same zoom).
+        // zoomScale ~0.01 = street level (full fog), ~0.0001 = continent (light fog).
+        // Clamp the multiplier between 0.3 (very zoomed out) and 1.0 (street level).
+        let baseFogAlpha = Double(Constants.fogColor.cgColor.alpha)
+        let logScale = log10(max(Double(zoomScale), 1e-6))
+        let fogMultiplier = min(1.0, max(0.3, (logScale + 4.5) / 3.0))
+        let fogAlpha = baseFogAlpha * fogMultiplier
+
+        // Fill entire draw rect with fog
+        context.setFillColor(Constants.fogColor.withAlphaComponent(fogAlpha).cgColor)
+        context.fill(drawRect)
 
         // At very low zoom, individual 50m cells are invisible — skip the query
         if region.span.latitudeDelta > 1.0 {
@@ -47,7 +55,7 @@ final class FogOverlayRenderer: MKOverlayRenderer {
         )
 
         let cells = gridEngine.cellsWithCounts(in: paddedRegion)
-        let revealedSet = Set(cells.map { $0.0 })
+
 
         for (cell, count) in cells {
             let cellRect = cellScreenRect(for: cell)
@@ -81,9 +89,6 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             }
         }
 
-        // Soft fog edges: draw gradient strips on edges that border unrevealed cells
-        drawFogEdgeGradients(cells: cells, revealedSet: revealedSet, in: context)
-
         // Cell clearing animation: recently revealed cells show residual fog that fades out
         let now = Date()
         let animationDuration: TimeInterval = 0.3
@@ -97,10 +102,9 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             context.fill(cellRect)
         }
 
-        // Photo dots: small circles at cell centers for cells with geotagged photos
+        // Photo count numbers: small count in bottom-right corner of cells with photos
         if gridEngine.photoCells == nil, let photoDots = gridEngine.photoDotsData {
             context.setBlendMode(.normal)
-            context.setFillColor(Constants.photoDotColor.cgColor)
             for (cell, photoCount) in photoDots {
                 let coord = cell.coordinate
                 guard coord.latitude >= region.center.latitude - region.span.latitudeDelta
@@ -110,19 +114,21 @@ final class FogOverlayRenderer: MKOverlayRenderer {
                     continue
                 }
                 let cellRect = cellScreenRect(for: cell)
-                let dotRadius: CGFloat
-                switch photoCount {
-                case 1: dotRadius = max(cellRect.width * 0.08, 2)
-                case 2...4: dotRadius = max(cellRect.width * 0.12, 3)
-                default: dotRadius = max(cellRect.width * 0.16, 4)
-                }
-                let center = CGPoint(x: cellRect.midX, y: cellRect.midY)
-                context.fillEllipse(in: CGRect(
-                    x: center.x - dotRadius,
-                    y: center.y - dotRadius,
-                    width: dotRadius * 2,
-                    height: dotRadius * 2
-                ))
+                let fontSize = max(cellRect.width * 0.22, 6)
+                guard fontSize >= 6 else { continue }
+                let text = "\(photoCount)" as NSString
+                let attrs: [NSAttributedString.Key: Any] = [
+                    .font: UIFont.systemFont(ofSize: fontSize, weight: .semibold),
+                    .foregroundColor: UIColor.white.withAlphaComponent(0.55)
+                ]
+                let textSize = text.size(withAttributes: attrs)
+                let textOrigin = CGPoint(
+                    x: cellRect.maxX - textSize.width - cellRect.width * 0.06,
+                    y: cellRect.maxY - textSize.height - cellRect.height * 0.04
+                )
+                UIGraphicsPushContext(context)
+                text.draw(at: textOrigin, withAttributes: attrs)
+                UIGraphicsPopContext()
             }
         }
     }
@@ -142,52 +148,7 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             height: abs(nePoint.y - swPoint.y)
         )
 
-        return rect(for: cellMapRect)
-    }
-
-    private func drawFogEdgeGradients(cells: [(GridCell, Int)], revealedSet: Set<GridCell>, in context: CGContext) {
-        let fogCG = Constants.fogColor.cgColor
-        let clearFog = Constants.fogColor.withAlphaComponent(0).cgColor
-        guard let gradient = CGGradient(
-            colorsSpace: CGColorSpaceCreateDeviceRGB(),
-            colors: [clearFog, fogCG] as CFArray,
-            locations: [0.0, 1.0]
-        ) else { return }
-
-        for (cell, _) in cells {
-            let cellRect = cellScreenRect(for: cell)
-            let feather = min(cellRect.width, cellRect.height) * 0.2
-
-            let neighbors = cell.neighbors
-            // North edge (top of screen = min Y in CG, but MKMapPoint Y increases going north = decreasing screen Y)
-            if !revealedSet.contains(neighbors.north) {
-                context.saveGState()
-                context.clip(to: CGRect(x: cellRect.minX, y: cellRect.minY, width: cellRect.width, height: feather))
-                context.drawLinearGradient(gradient, start: CGPoint(x: cellRect.midX, y: cellRect.minY + feather), end: CGPoint(x: cellRect.midX, y: cellRect.minY), options: [])
-                context.restoreGState()
-            }
-            // South edge
-            if !revealedSet.contains(neighbors.south) {
-                context.saveGState()
-                context.clip(to: CGRect(x: cellRect.minX, y: cellRect.maxY - feather, width: cellRect.width, height: feather))
-                context.drawLinearGradient(gradient, start: CGPoint(x: cellRect.midX, y: cellRect.maxY - feather), end: CGPoint(x: cellRect.midX, y: cellRect.maxY), options: [])
-                context.restoreGState()
-            }
-            // West edge
-            if !revealedSet.contains(neighbors.west) {
-                context.saveGState()
-                context.clip(to: CGRect(x: cellRect.minX, y: cellRect.minY, width: feather, height: cellRect.height))
-                context.drawLinearGradient(gradient, start: CGPoint(x: cellRect.minX + feather, y: cellRect.midY), end: CGPoint(x: cellRect.minX, y: cellRect.midY), options: [])
-                context.restoreGState()
-            }
-            // East edge
-            if !revealedSet.contains(neighbors.east) {
-                context.saveGState()
-                context.clip(to: CGRect(x: cellRect.maxX - feather, y: cellRect.minY, width: feather, height: cellRect.height))
-                context.drawLinearGradient(gradient, start: CGPoint(x: cellRect.maxX - feather, y: cellRect.midY), end: CGPoint(x: cellRect.maxX, y: cellRect.midY), options: [])
-                context.restoreGState()
-            }
-        }
+        return rect(for: cellMapRect).insetBy(dx: -0.5, dy: -0.5)
     }
 
     private func photoDensityColor(for photoCount: Int) -> UIColor? {

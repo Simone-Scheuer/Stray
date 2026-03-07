@@ -15,8 +15,8 @@ struct CellPhotosView: View {
     @State private var showShareSheet = false
     @State private var dragOffset: CGFloat = 0
 
-    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 3)
-    private let thumbSize = CGSize(width: 80, height: 80)
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 6), count: 3)
+    private let thumbSize = CGSize(width: 100, height: 100)
 
     var body: some View {
         if !photoService.isAuthorized {
@@ -32,7 +32,7 @@ struct CellPhotosView: View {
                 .onAppear { loadAssets() }
         } else {
             VStack(alignment: .leading, spacing: 8) {
-                LazyVGrid(columns: columns, spacing: 4) {
+                LazyVGrid(columns: columns, spacing: 6) {
                     ForEach(assets.prefix(6), id: \.localIdentifier) { asset in
                         thumbnailView(for: asset)
                             .onTapGesture {

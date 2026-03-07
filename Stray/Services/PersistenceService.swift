@@ -19,6 +19,7 @@ final class PersistenceService {
 
     // Cache city names by coarse coordinate bucket (~500m)
     private var cityCache: [String: String] = [:]
+    private var backfillTask: Task<Void, Never>?
 
     // Track new cells and distance within current batch for daily summary updates
     private var pendingNewCells: Int = 0
@@ -146,6 +147,56 @@ final class PersistenceService {
         save()
     }
 
+    /// Geocodes all cells that still have city == nil, in batches respecting the rate limit.
+    func backfillMissingCities() {
+        let descriptor = FetchDescriptor<RevealedCell>(
+            predicate: #Predicate<RevealedCell> { $0.city == nil }
+        )
+        let cells: [RevealedCell]
+        do {
+            cells = try context.fetch(descriptor)
+        } catch {
+            Self.logger.error("Failed to fetch cells for city backfill: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+        guard !cells.isEmpty else { return }
+
+        backfillTask?.cancel()
+        backfillTask = Task {
+            for record in cells {
+                guard !Task.isCancelled else { break }
+                let cell = GridCell(latIndex: record.latIndex, lngIndex: record.lngIndex)
+                let coord = cell.centerCoordinate
+                let bucketKey = geocodeBucketKey(for: coord)
+
+                if let cached = await MainActor.run(body: { cityCache[bucketKey] }) {
+                    await MainActor.run {
+                        setCityOnCell(cell, city: cached)
+                    }
+                    continue
+                }
+
+                let location = CLLocation(latitude: coord.latitude, longitude: coord.longitude)
+                do {
+                    let placemarks = try await geocoder.reverseGeocodeLocation(location)
+                    if let city = placemarks.first?.locality {
+                        await MainActor.run {
+                            self.cityCache[bucketKey] = city
+                            self.setCityOnCell(cell, city: city)
+                        }
+                    }
+                } catch {
+                    // Rate limited or network error — stop and retry next launch
+                    Self.logger.info("City backfill paused: \(error.localizedDescription, privacy: .public)")
+                    break
+                }
+                // ~1.5s between requests to stay well under Apple's rate limit
+                try? await Task.sleep(for: .milliseconds(1500))
+            }
+            await MainActor.run { self.save() }
+        }
+    }
+
     /// Detects the city for a grid cell using reverse geocoding with rate limiting and caching.
     func detectCity(for cell: GridCell, at coordinate: CLLocationCoordinate2D) {
         let bucketKey = geocodeBucketKey(for: coordinate)
@@ -154,6 +205,11 @@ final class PersistenceService {
         if let cached = cityCache[bucketKey] {
             setCityOnCell(cell, city: cached)
             return
+        }
+
+        if cityCache.count > 500 {
+            let keysToRemove = Array(cityCache.keys.prefix(cityCache.count / 2))
+            for key in keysToRemove { cityCache.removeValue(forKey: key) }
         }
 
         // Rate limit check
