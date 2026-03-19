@@ -181,9 +181,12 @@ struct StrayApp: App {
         let persistence = persistenceService
 
         Task.detached(priority: .utility) {
-            // Wait for scan to complete off the main thread
+            // Wait for scan to complete off the main thread (timeout after 30s)
+            var waited: TimeInterval = 0
             while await !photo.scanComplete {
                 try? await Task.sleep(for: .milliseconds(200))
+                waited += 0.2
+                if waited > 30 || Task.isCancelled { return }
             }
 
             let cells = await photo.cellsWithPhotos

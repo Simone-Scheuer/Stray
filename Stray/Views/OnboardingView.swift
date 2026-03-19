@@ -227,9 +227,12 @@ struct OnboardingView: View {
                         let status = await photoService.requestAuthorization()
                         if status == .authorized || status == .limited {
                             await photoService.scanLibrary()
-                            // Wait for scan to complete off main thread
+                            // Wait for scan to complete (timeout after 30s)
+                            var waited: TimeInterval = 0
                             while await !photoService.scanComplete {
                                 try? await Task.sleep(for: .milliseconds(100))
+                                waited += 0.1
+                                if waited > 30 || Task.isCancelled { break }
                             }
                             let cells = await photoService.cellsWithPhotos.count
                             let photos = await photoService.totalGeotaggedPhotos
