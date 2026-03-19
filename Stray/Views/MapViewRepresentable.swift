@@ -133,23 +133,23 @@ struct MapViewRepresentable: UIViewRepresentable {
     }
 
     static func buildMapConfig(style: String, mutedMapStyle: Bool, showTraffic: Bool, showMapLabels: Bool) -> MKMapConfiguration {
-        let poiFilter: MKPointOfInterestFilter? = showMapLabels ? nil : .excludingAll
-        switch style {
-        case "satellite":
-            return MKImageryMapConfiguration()
-        case "hybrid":
-            let config = MKHybridMapConfiguration()
-            config.showsTraffic = showTraffic
-            if let filter = poiFilter { config.pointOfInterestFilter = filter }
-            return config
-        default:
-            let config = MKStandardMapConfiguration(
-                emphasisStyle: mutedMapStyle ? .muted : .default
-            )
-            config.showsTraffic = showTraffic
-            if let filter = poiFilter { config.pointOfInterestFilter = filter }
-            return config
+        if style == "satellite" {
+            if showMapLabels {
+                let config = MKHybridMapConfiguration()
+                config.showsTraffic = showTraffic
+                return config
+            } else {
+                return MKImageryMapConfiguration()
+            }
         }
+        let config = MKStandardMapConfiguration(
+            emphasisStyle: mutedMapStyle ? .muted : .default
+        )
+        config.showsTraffic = showTraffic
+        if !showMapLabels {
+            config.pointOfInterestFilter = .excludingAll
+        }
+        return config
     }
 
     // MARK: - Coordinator

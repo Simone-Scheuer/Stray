@@ -58,16 +58,13 @@ struct SettingsView: View {
         Section {
             Picker("Map Style", selection: $mapStyle) {
                 Text("Satellite").tag("satellite")
-                Text("Hybrid").tag("hybrid")
                 Text("Standard").tag("standard")
             }
+            Toggle("Show Labels", isOn: $showMapLabels)
             if mapStyle == "standard" {
                 Toggle("Muted Style", isOn: $mutedMapStyle)
             }
-            if mapStyle != "satellite" {
-                Toggle("Show Labels", isOn: $showMapLabels)
-                Toggle("Show Traffic", isOn: $showTraffic)
-            }
+            Toggle("Show Traffic", isOn: $showTraffic)
             Toggle("Allow Rotation", isOn: $allowRotation)
             if photoService.isAuthorized {
                 Toggle("Show Photo Markers", isOn: $showPhotoDots)
