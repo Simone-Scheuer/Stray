@@ -28,28 +28,20 @@ final class FogOverlayRenderer: MKOverlayRenderer {
 
     override func draw(_ mapRect: MKMapRect, zoomScale: MKZoomScale, in context: CGContext) {
         let drawRect = rect(for: mapRect)
-
-        // Convert mapRect to coordinate region for spatial query
         let region = MKCoordinateRegion(mapRect)
 
-        // Smooth fog fade using zoomScale (consistent across all tiles at same zoom).
-        // zoomScale ~0.01 = street level (full fog), ~0.0001 = continent (light fog).
-        // Clamp the multiplier between 0.3 (very zoomed out) and 1.0 (street level).
         let baseFogAlpha = Double(Constants.fogColor.cgColor.alpha)
         let logScale = log10(max(Double(zoomScale), 1e-6))
         let fogMultiplier = min(1.0, max(0.3, (logScale + 4.5) / 3.0))
         let fogAlpha = baseFogAlpha * fogMultiplier
 
-        // Fill entire draw rect with fog
         context.setFillColor(Constants.fogColor.withAlphaComponent(fogAlpha).cgColor)
         context.fill(drawRect)
 
-        // At very low zoom, individual 50m cells are invisible — skip the query
         if region.span.latitudeDelta > 1.0 {
             return
         }
 
-        // Pad query region by 2 cell widths to catch cells straddling edges
         let cellPadLat = GridCell.latStep * 2
         let cellPadLng = GridCell.lngStep(atLatitude: region.center.latitude) * 2
         let paddedRegion = MKCoordinateRegion(
@@ -61,7 +53,8 @@ final class FogOverlayRenderer: MKOverlayRenderer {
         )
 
         let cells = gridEngine.cellsWithCounts(in: paddedRegion)
-
+        let isHeatMode = gridEngine.heatCells
+        let isPhotoMode = gridEngine.photoCells != nil
 
         for (cell, count) in cells {
             let cellRect = cellScreenRect(for: cell)
@@ -70,9 +63,15 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             context.setBlendMode(.clear)
             context.fill(cellRect)
 
-            // Photo mode uses purple density gradient; normal mode uses heat + special tiles
-            if gridEngine.photoCells != nil {
+            // Apply tint only in a visualization mode, or for special tiles
+            if isPhotoMode {
                 if let tint = photoDensityColor(for: count) {
+                    context.setBlendMode(.normal)
+                    context.setFillColor(tint.cgColor)
+                    context.fill(cellRect)
+                }
+            } else if isHeatMode {
+                if let tint = heatColor(for: count) {
                     context.setBlendMode(.normal)
                     context.setFillColor(tint.cgColor)
                     context.fill(cellRect)
@@ -81,10 +80,6 @@ final class FogOverlayRenderer: MKOverlayRenderer {
                let specialColor = UIColor(hex: special.colorHex) {
                 context.setBlendMode(.normal)
                 context.setFillColor(specialColor.withAlphaComponent(Constants.specialTileAlpha).cgColor)
-                context.fill(cellRect)
-            } else if let tint = heatColor(for: count) {
-                context.setBlendMode(.normal)
-                context.setFillColor(tint.cgColor)
                 context.fill(cellRect)
             }
             context.setBlendMode(.normal)
@@ -95,21 +90,21 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             }
         }
 
-        // Cell clearing animation: recently revealed cells show residual fog that fades out
+        // Cell clearing animation
         let now = Date()
         let animationDuration: TimeInterval = 0.3
         for (cell, revealTime) in gridEngine.recentlyRevealedCells {
             let age = now.timeIntervalSince(revealTime)
             guard age < animationDuration else { continue }
             let progress = age / animationDuration
-            let fogAlpha = (1.0 - progress) * Double(Constants.fogColor.cgColor.alpha)
+            let residualAlpha = (1.0 - progress) * Double(Constants.fogColor.cgColor.alpha)
             let cellRect = cellScreenRect(for: cell)
-            context.setFillColor(Constants.fogColor.withAlphaComponent(fogAlpha).cgColor)
+            context.setFillColor(Constants.fogColor.withAlphaComponent(residualAlpha).cgColor)
             context.fill(cellRect)
         }
 
-        // Photo count numbers: small count in bottom-right corner of cells with photos
-        if gridEngine.photoCells == nil, let photoDots = gridEngine.photoDotsData {
+        // Photo count numbers
+        if !isPhotoMode, !isHeatMode, let photoDots = gridEngine.photoDotsData {
             context.setBlendMode(.normal)
             for (cell, photoCount) in photoDots {
                 let coord = cell.coordinate

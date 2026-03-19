@@ -17,15 +17,15 @@ enum Constants {
     // Default: deep blue → bright green
     // Colorblind: deep blue → warm yellow
     static let heatTiers = 5
-    static let heatAlphaRange: (low: CGFloat, high: CGFloat) = (0.40, 0.55)
+    static let heatAlphaRange: (low: CGFloat, high: CGFloat) = (0.50, 0.65)
 
-    // Default gradient: blue (H=215°) → green (H=145°)
-    static let defaultGradientStart = HSBColor(h: 215, s: 0.65, b: 0.70)
-    static let defaultGradientEnd = HSBColor(h: 145, s: 0.60, b: 0.80)
+    // Default gradient: cool blue (H=210°) → warm amber/gold (H=40°)
+    static let defaultGradientStart = HSBColor(h: 210, s: 0.70, b: 0.85)
+    static let defaultGradientEnd = HSBColor(h: 40, s: 0.80, b: 0.95)
 
-    // Colorblind-safe gradient: blue (H=215°) → yellow (H=45°)
-    static let colorblindGradientStart = HSBColor(h: 215, s: 0.65, b: 0.70)
-    static let colorblindGradientEnd = HSBColor(h: 45, s: 0.70, b: 0.90)
+    // Colorblind-safe gradient: blue (H=210°) → bright yellow (H=55°)
+    static let colorblindGradientStart = HSBColor(h: 210, s: 0.70, b: 0.85)
+    static let colorblindGradientEnd = HSBColor(h: 55, s: 0.80, b: 0.95)
 
     static let colorblindModeKey = "colorblindMode"
 

@@ -16,6 +16,7 @@ final class GridEngine {
     private(set) var specialTiles: [GridCell: SpecialTile] = [:]
     private(set) var timelineCells: [GridCell: Int]? = nil
     private(set) var photoCells: [GridCell: Int]? = nil
+    private(set) var heatCells: Bool = false
     private(set) var photoDotsData: [GridCell: Int]? = nil
     private(set) var compassTarget: GridCell? = nil
     private(set) var inspectedCell: GridCell? = nil
@@ -187,6 +188,18 @@ final class GridEngine {
             lastVisitTimes[cell] = record.lastVisitedAt
             addToSpatialIndex(cell)
         }
+        renderGeneration += 1
+    }
+
+    // MARK: - Heat Mode
+
+    func enterHeatMode() {
+        heatCells = true
+        renderGeneration += 1
+    }
+
+    func exitHeatMode() {
+        heatCells = false
         renderGeneration += 1
     }
 

@@ -47,6 +47,7 @@ struct ContentView: View {
     @State private var lastNewCellTime: Date?
 
     @State private var showPhotoMode = false
+    @State private var showHeatMode = false
     @State private var showSplash = true
 
     @State private var healthSteps: Int?
@@ -110,6 +111,18 @@ struct ContentView: View {
                                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 enterTimeline()
                             }
+                            iconButton(
+                                systemName: showHeatMode ? "flame.fill" : "flame",
+                                tint: showHeatMode ? .orange.opacity(0.7) : nil,
+                                label: showHeatMode ? "Exit heat map" : "View heat map"
+                            ) {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                                if showHeatMode {
+                                    exitHeatMode()
+                                } else {
+                                    enterHeatMode()
+                                }
+                            }
                             if photoService.isAuthorized {
                                 iconButton(
                                     systemName: showPhotoMode ? "photo.fill" : "photo",
@@ -135,6 +148,18 @@ struct ContentView: View {
                         }
                         .padding(.trailing, 16)
                         .padding(.top, 12)
+                    }
+
+                    if showHeatMode {
+                        HStack {
+                            Image(systemName: "flame.fill")
+                            Text("Heat Map")
+                        }
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(.orange.opacity(0.7), in: Capsule())
                     }
 
                     if showPhotoMode {
@@ -339,10 +364,25 @@ struct ContentView: View {
         }
     }
 
+    // MARK: - Heat Mode
+
+    private func enterHeatMode() {
+        guard !showTimeline, !showHeatMode else { return }
+        if showPhotoMode { exitPhotoMode() }
+        gridEngine.enterHeatMode()
+        showHeatMode = true
+    }
+
+    private func exitHeatMode() {
+        gridEngine.exitHeatMode()
+        showHeatMode = false
+    }
+
     // MARK: - Photo Mode
 
     private func enterPhotoMode() {
         guard !showTimeline, !showPhotoMode else { return }
+        if showHeatMode { exitHeatMode() }
         var photoCellDict: [GridCell: Int] = [:]
         for cell in photoService.cellsWithPhotos {
             guard gridEngine.isRevealed(cell) else { continue }
