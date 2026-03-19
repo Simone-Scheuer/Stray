@@ -22,6 +22,7 @@ struct ContentView: View {
     @AppStorage(Constants.allowRotationKey) private var allowRotation = true
     @AppStorage(Constants.showPhotoDotsKey) private var showPhotoDots = false
     @AppStorage(Constants.mapStyleKey) private var mapStyle = "satellite"
+    @AppStorage(Constants.colorblindModeKey) private var colorblindMode = false
 
     @State private var showStats = false
     @State private var showSettings = false
@@ -61,6 +62,7 @@ struct ContentView: View {
                 showTraffic: showTraffic,
                 allowRotation: allowRotation,
                 mapStyle: mapStyle,
+                colorblindMode: colorblindMode,
                 sessionPathPolyline: sessionViewModel?.pathPolyline,
                 isFollowingUser: $isFollowingUser,
                 onCellTapped: { cell in
@@ -539,13 +541,9 @@ private struct SplashOverlay: View {
     @State private var animationPhase: Double = 0
 
     private let gridSize = 5
-    private let colors: [Color] = [
-        Color(UIColor(red: 0.2, green: 0.6, blue: 0.7, alpha: 1.0)),   // teal
-        Color(UIColor(red: 0.3, green: 0.45, blue: 0.8, alpha: 1.0)),  // slate blue
-        Color(UIColor(red: 0.4, green: 0.35, blue: 0.75, alpha: 1.0)), // indigo
-        Color(UIColor(red: 0.9, green: 0.6, blue: 0.2, alpha: 1.0)),   // amber
-        Color(UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 1.0)),  // golden glow
-    ]
+    private let colors: [Color] = HeatGradient.colors(colorblind: false).map {
+        Color($0.withAlphaComponent(1.0))
+    }
 
     var body: some View {
         ZStack {

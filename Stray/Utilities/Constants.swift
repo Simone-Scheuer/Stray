@@ -13,15 +13,21 @@ enum Constants {
     // Cooldown before a cell's visit count increments again (1 hour)
     static let visitCooldownSeconds: TimeInterval = 3600.0
 
-    // Heat gradient colors — distinct at low counts, banded at high counts
-    static let heatTeal = UIColor(red: 0.2, green: 0.6, blue: 0.7, alpha: 0.40)           // 1 visit — first footprint
-    static let heatSlateBlue = UIColor(red: 0.3, green: 0.45, blue: 0.8, alpha: 0.40)     // 2 visits
-    static let heatIndigo = UIColor(red: 0.4, green: 0.35, blue: 0.75, alpha: 0.40)       // 3 visits
-    static let heatLavender = UIColor(red: 0.5, green: 0.4, blue: 0.7, alpha: 0.38)       // 4-5 visits
-    static let heatWarmNeutral = UIColor(red: 0.6, green: 0.5, blue: 0.4, alpha: 0.38)    // 6-10 visits
-    static let heatAmber = UIColor(red: 0.9, green: 0.6, blue: 0.2, alpha: 0.42)          // 11-20 visits
-    static let heatDeepOrange = UIColor(red: 0.95, green: 0.45, blue: 0.15, alpha: 0.45)  // 21-50 visits
-    static let heatGoldenGlow = UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 0.50)    // 51+ visits
+    // Heat gradient — 5 tiers, interpolated in HSB between two endpoints
+    // Default: deep blue → bright green
+    // Colorblind: deep blue → warm yellow
+    static let heatTiers = 5
+    static let heatAlphaRange: (low: CGFloat, high: CGFloat) = (0.40, 0.55)
+
+    // Default gradient: blue (H=215°) → green (H=145°)
+    static let defaultGradientStart = HSBColor(h: 215, s: 0.65, b: 0.70)
+    static let defaultGradientEnd = HSBColor(h: 145, s: 0.60, b: 0.80)
+
+    // Colorblind-safe gradient: blue (H=215°) → yellow (H=45°)
+    static let colorblindGradientStart = HSBColor(h: 215, s: 0.65, b: 0.70)
+    static let colorblindGradientEnd = HSBColor(h: 45, s: 0.70, b: 0.90)
+
+    static let colorblindModeKey = "colorblindMode"
 
     // Special tile presets
     static let specialTilePresets: [(label: String, icon: String, colorHex: String)] = [
@@ -36,11 +42,8 @@ enum Constants {
     static let lowPowerAccuracyThreshold: CLLocationAccuracy = 150.0
     static let averageStrideLengthMeters: Double = 0.7
     static let minimumDistanceBetweenUpdatesMeters: Double = 5.0
-    // Reject GPS deltas above this — implies a position jump, not actual movement
     static let maxDistanceDeltaMeters: Double = 100.0
-    // Reject if implied speed exceeds this (6 m/s ≈ 13 mph, fast running)
     static let maxSpeedMetersPerSecond: Double = 6.0
-    // Reset reference point after this long without an accepted distance (handles background gaps)
     static let staleReferenceTimeoutSeconds: TimeInterval = 120.0
     static let geocodeRateLimitPerMinute: Int = 40
     static let hasCompletedOnboardingKey = "hasCompletedOnboarding"
@@ -51,11 +54,45 @@ enum Constants {
     static let allowRotationKey = "allowRotation"
     static let hasCompletedPhotoScanKey = "hasCompletedPhotoScan"
     static let showPhotoDotsKey = "showPhotoDots"
-    static let mapStyleKey = "mapStyle" // "satellite" (default), "standard", "hybrid"
+    static let mapStyleKey = "mapStyle"
 
     // Photo density gradient colors (purple/magenta spectrum)
-    static let photoDensityFaint = UIColor(red: 0.55, green: 0.30, blue: 0.85, alpha: 0.30)    // 1 photo
-    static let photoDensityMedium = UIColor(red: 0.65, green: 0.25, blue: 0.90, alpha: 0.40)   // 2-4 photos
-    static let photoDensityBright = UIColor(red: 0.85, green: 0.20, blue: 0.75, alpha: 0.45)   // 5-9 photos
-    static let photoDensityVivid = UIColor(red: 1.00, green: 0.30, blue: 0.65, alpha: 0.55)    // 10+ photos
+    static let photoDensityFaint = UIColor(red: 0.55, green: 0.30, blue: 0.85, alpha: 0.30)
+    static let photoDensityMedium = UIColor(red: 0.65, green: 0.25, blue: 0.90, alpha: 0.40)
+    static let photoDensityBright = UIColor(red: 0.85, green: 0.20, blue: 0.75, alpha: 0.45)
+    static let photoDensityVivid = UIColor(red: 1.00, green: 0.30, blue: 0.65, alpha: 0.55)
+}
+
+// MARK: - Heat Gradient
+
+struct HSBColor {
+    let h: CGFloat // 0-360
+    let s: CGFloat // 0-1
+    let b: CGFloat // 0-1
+}
+
+/// Pre-computed heat gradient colors for fast lookup in the renderer.
+/// Call `HeatGradient.colors(colorblind:)` to get the 5-tier array.
+enum HeatGradient {
+    /// Returns 5 UIColors interpolated between the gradient endpoints.
+    /// Index 0 = tier 1 (1 visit), index 4 = tier 5 (21+ visits).
+    static func colors(colorblind: Bool) -> [UIColor] {
+        let start = colorblind ? Constants.colorblindGradientStart : Constants.defaultGradientStart
+        let end = colorblind ? Constants.colorblindGradientEnd : Constants.defaultGradientEnd
+        let n = Constants.heatTiers
+        let (alphaLow, alphaHigh) = Constants.heatAlphaRange
+
+        return (0..<n).map { i in
+            let t = n == 1 ? 0.0 : CGFloat(i) / CGFloat(n - 1)
+            let h = lerp(start.h, end.h, t) / 360.0
+            let s = lerp(start.s, end.s, t)
+            let b = lerp(start.b, end.b, t)
+            let alpha = lerp(alphaLow, alphaHigh, t)
+            return UIColor(hue: h, saturation: s, brightness: b, alpha: alpha)
+        }
+    }
+
+    private static func lerp(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat {
+        a + (b - a) * t
+    }
 }

@@ -288,12 +288,9 @@ final class GridEngine {
             case 0: return 0
             case 1: return 1
             case 2: return 2
-            case 3: return 3
-            case 4...5: return 4
-            case 6...10: return 5
-            case 11...20: return 6
-            case 21...50: return 7
-            default: return 8
+            case 3...5: return 3
+            case 6...20: return 4
+            default: return 5
             }
         }
         return tier(oldCount) != tier(newCount)

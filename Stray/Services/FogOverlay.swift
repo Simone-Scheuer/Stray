@@ -14,10 +14,16 @@ final class FogOverlay: NSObject, MKOverlay {
 
 final class FogOverlayRenderer: MKOverlayRenderer {
     let gridEngine: GridEngine
+    private var heatColors: [UIColor]
 
-    init(overlay: MKOverlay, gridEngine: GridEngine) {
+    init(overlay: MKOverlay, gridEngine: GridEngine, colorblind: Bool = false) {
         self.gridEngine = gridEngine
+        self.heatColors = HeatGradient.colors(colorblind: colorblind)
         super.init(overlay: overlay)
+    }
+
+    func updateColorblindMode(_ colorblind: Bool) {
+        heatColors = HeatGradient.colors(colorblind: colorblind)
     }
 
     override func draw(_ mapRect: MKMapRect, zoomScale: MKZoomScale, in context: CGContext) {
@@ -164,14 +170,11 @@ final class FogOverlayRenderer: MKOverlayRenderer {
     private func heatColor(for visitCount: Int) -> UIColor? {
         switch visitCount {
         case 0: return nil
-        case 1: return Constants.heatTeal
-        case 2: return Constants.heatSlateBlue
-        case 3: return Constants.heatIndigo
-        case 4...5: return Constants.heatLavender
-        case 6...10: return Constants.heatWarmNeutral
-        case 11...20: return Constants.heatAmber
-        case 21...50: return Constants.heatDeepOrange
-        default: return Constants.heatGoldenGlow
+        case 1: return heatColors[0]
+        case 2: return heatColors[1]
+        case 3...5: return heatColors[2]
+        case 6...20: return heatColors[3]
+        default: return heatColors[4]
         }
     }
 }

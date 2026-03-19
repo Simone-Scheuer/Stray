@@ -11,6 +11,7 @@ struct SettingsView: View {
     @AppStorage(Constants.allowRotationKey) private var allowRotation = true
     @AppStorage(Constants.showPhotoDotsKey) private var showPhotoDots = false
     @AppStorage(Constants.mapStyleKey) private var mapStyle = "satellite"
+    @AppStorage(Constants.colorblindModeKey) private var colorblindMode = false
 
     var body: some View {
         NavigationStack {
@@ -66,15 +67,18 @@ struct SettingsView: View {
             }
             Toggle("Show Traffic", isOn: $showTraffic)
             Toggle("Allow Rotation", isOn: $allowRotation)
+            Toggle("Colorblind Colors", isOn: $colorblindMode)
             if photoService.isAuthorized {
                 Toggle("Show Photo Markers", isOn: $showPhotoDots)
             }
         } header: {
             Text("Map")
         } footer: {
-            Text(mapStyle == "satellite"
-                 ? "Satellite view shows the real world beneath your fog — revealed areas show aerial imagery."
-                 : "Muted style dims the base map so your exploration colors stand out more.")
+            Text(colorblindMode
+                 ? "Uses a blue → yellow gradient that's visible with all types of color vision."
+                 : mapStyle == "satellite"
+                     ? "Satellite view shows the real world beneath your fog — revealed areas show aerial imagery."
+                     : "Muted style dims the base map so your exploration colors stand out more.")
         }
     }
 

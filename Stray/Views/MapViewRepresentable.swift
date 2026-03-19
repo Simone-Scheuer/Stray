@@ -27,6 +27,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     var showTraffic: Bool = false
     var allowRotation: Bool = true
     var mapStyle: String = "satellite"
+    var colorblindMode: Bool = false
     var sessionPathPolyline: MKPolyline?
     @Binding var isFollowingUser: Bool
     var onCellTapped: ((GridCell) -> Void)?
@@ -120,6 +121,12 @@ struct MapViewRepresentable: UIViewRepresentable {
             uiView.isRotateEnabled = allowRotation
         }
 
+        if colorblindMode != context.coordinator.lastColorblindMode {
+            context.coordinator.lastColorblindMode = colorblindMode
+            context.coordinator.fogRenderer?.updateColorblindMode(colorblindMode)
+            context.coordinator.fogRenderer?.setNeedsDisplay()
+        }
+
         // Update session path polyline
         if sessionPathPolyline !== context.coordinator.currentPathPolyline {
             if let old = context.coordinator.currentPathPolyline {
@@ -163,6 +170,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         var lastShowTraffic: Bool = false
         var lastAllowRotation: Bool = true
         var lastMapStyle: String = "satellite"
+        var lastColorblindMode: Bool = false
         var onCellTapped: ((GridCell) -> Void)?
         var compassTargetAnnotation: CompassTargetAnnotation?
         var regionAnnotations: [RegionAnnotation] = []
