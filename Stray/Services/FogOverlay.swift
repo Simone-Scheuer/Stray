@@ -81,6 +81,11 @@ final class FogOverlayRenderer: MKOverlayRenderer {
                 context.setBlendMode(.normal)
                 context.setFillColor(specialColor.withAlphaComponent(Constants.specialTileAlpha).cgColor)
                 context.fill(cellRect)
+            } else {
+                // Default mode: subtle pale blue wash on revealed cells
+                context.setBlendMode(.normal)
+                context.setFillColor(Constants.revealedCellTint.cgColor)
+                context.fill(cellRect)
             }
             context.setBlendMode(.normal)
 
