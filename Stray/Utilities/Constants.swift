@@ -10,15 +10,18 @@ enum Constants {
     static let bootRevealRadius: Int = 1
     static let tileReloadThrottleSeconds: Double = 1.0
 
-    // Cooldown before a cell's visit count increments again (30 minutes)
-    static let visitCooldownSeconds: TimeInterval = 1800.0
+    // Cooldown before a cell's visit count increments again (1 hour)
+    static let visitCooldownSeconds: TimeInterval = 3600.0
 
-    // Heat gradient colors — smooth ramp from cool to warm
-    static let heatCoolBlue = UIColor(red: 0.3, green: 0.5, blue: 0.9, alpha: 0.45)       // 1 visit
-    static let heatLightBlue = UIColor(red: 0.35, green: 0.55, blue: 0.8, alpha: 0.38)    // 2-4 visits
-    static let heatNeutral = UIColor(red: 0.55, green: 0.5, blue: 0.45, alpha: 0.30)      // 5-9 visits
-    static let heatWarmAmber = UIColor(red: 0.9, green: 0.6, blue: 0.2, alpha: 0.40)      // 10-29 visits
-    static let heatBrightGlow = UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 0.50)    // 30+ visits
+    // Heat gradient colors — distinct at low counts, banded at high counts
+    static let heatTeal = UIColor(red: 0.2, green: 0.6, blue: 0.7, alpha: 0.40)           // 1 visit — first footprint
+    static let heatSlateBlue = UIColor(red: 0.3, green: 0.45, blue: 0.8, alpha: 0.40)     // 2 visits
+    static let heatIndigo = UIColor(red: 0.4, green: 0.35, blue: 0.75, alpha: 0.40)       // 3 visits
+    static let heatLavender = UIColor(red: 0.5, green: 0.4, blue: 0.7, alpha: 0.38)       // 4-5 visits
+    static let heatWarmNeutral = UIColor(red: 0.6, green: 0.5, blue: 0.4, alpha: 0.38)    // 6-10 visits
+    static let heatAmber = UIColor(red: 0.9, green: 0.6, blue: 0.2, alpha: 0.42)          // 11-20 visits
+    static let heatDeepOrange = UIColor(red: 0.95, green: 0.45, blue: 0.15, alpha: 0.45)  // 21-50 visits
+    static let heatGoldenGlow = UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 0.50)    // 51+ visits
 
     // Special tile presets
     static let specialTilePresets: [(label: String, icon: String, colorHex: String)] = [

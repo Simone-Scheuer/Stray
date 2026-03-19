@@ -287,10 +287,13 @@ final class GridEngine {
             switch count {
             case 0: return 0
             case 1: return 1
-            case 2...4: return 2
-            case 5...9: return 3
-            case 10...29: return 4
-            default: return 5
+            case 2: return 2
+            case 3: return 3
+            case 4...5: return 4
+            case 6...10: return 5
+            case 11...20: return 6
+            case 21...50: return 7
+            default: return 8
             }
         }
         return tier(oldCount) != tier(newCount)

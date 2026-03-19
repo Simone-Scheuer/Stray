@@ -164,11 +164,14 @@ final class FogOverlayRenderer: MKOverlayRenderer {
     private func heatColor(for visitCount: Int) -> UIColor? {
         switch visitCount {
         case 0: return nil
-        case 1: return Constants.heatCoolBlue
-        case 2...4: return Constants.heatLightBlue
-        case 5...9: return Constants.heatNeutral
-        case 10...29: return Constants.heatWarmAmber
-        default: return Constants.heatBrightGlow
+        case 1: return Constants.heatTeal
+        case 2: return Constants.heatSlateBlue
+        case 3: return Constants.heatIndigo
+        case 4...5: return Constants.heatLavender
+        case 6...10: return Constants.heatWarmNeutral
+        case 11...20: return Constants.heatAmber
+        case 21...50: return Constants.heatDeepOrange
+        default: return Constants.heatGoldenGlow
         }
     }
 }
