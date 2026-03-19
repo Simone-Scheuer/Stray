@@ -29,8 +29,8 @@ enum Constants {
         ("Work", "briefcase.fill", "#7B68EE"),
         ("Favorite", "star.fill", "#FFD700"),
     ]
-    // Tint on revealed cells in default mode — cool blue "explored" wash
-    static let revealedCellTint = UIColor(red: 0.5, green: 0.7, blue: 0.95, alpha: 0.25)
+    // Tint on revealed cells in default mode — matches heat tier 1 blue
+    static let revealedCellTint = UIColor(hue: 210.0/360.0, saturation: 0.70, brightness: 0.85, alpha: 0.35)
 
     static let specialTileAlpha: CGFloat = 0.55
 
