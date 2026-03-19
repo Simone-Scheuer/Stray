@@ -19,15 +19,9 @@ enum Constants {
     static let heatTiers = 5
     static let heatAlphaRange: (low: CGFloat, high: CGFloat) = (0.50, 0.65)
 
-    // Default gradient: cool blue (H=210°) → warm amber/gold (H=40°)
-    static let defaultGradientStart = HSBColor(h: 210, s: 0.70, b: 0.85)
-    static let defaultGradientEnd = HSBColor(h: 40, s: 0.80, b: 0.95)
-
-    // Colorblind-safe gradient: blue (H=210°) → bright yellow (H=55°)
-    static let colorblindGradientStart = HSBColor(h: 210, s: 0.70, b: 0.85)
-    static let colorblindGradientEnd = HSBColor(h: 55, s: 0.80, b: 0.95)
-
-    static let colorblindModeKey = "colorblindMode"
+    // Heat gradient: cool blue (H=210°) → warm gold (H=50°) — universally accessible
+    static let gradientStart = HSBColor(h: 210, s: 0.70, b: 0.85)
+    static let gradientEnd = HSBColor(h: 50, s: 0.80, b: 0.95)
 
     // Special tile presets
     static let specialTilePresets: [(label: String, icon: String, colorHex: String)] = [
@@ -35,8 +29,8 @@ enum Constants {
         ("Work", "briefcase.fill", "#7B68EE"),
         ("Favorite", "star.fill", "#FFD700"),
     ]
-    // Subtle tint on revealed cells in default mode — pale blue "explored" wash
-    static let revealedCellTint = UIColor(red: 0.6, green: 0.75, blue: 0.95, alpha: 0.10)
+    // Tint on revealed cells in default mode — cool blue "explored" wash
+    static let revealedCellTint = UIColor(red: 0.5, green: 0.7, blue: 0.95, alpha: 0.25)
 
     static let specialTileAlpha: CGFloat = 0.55
 
@@ -75,13 +69,13 @@ struct HSBColor {
 }
 
 /// Pre-computed heat gradient colors for fast lookup in the renderer.
-/// Call `HeatGradient.colors(colorblind:)` to get the 5-tier array.
+/// Call `HeatGradient.colors()` to get the 5-tier array.
 enum HeatGradient {
     /// Returns 5 UIColors interpolated between the gradient endpoints.
     /// Index 0 = tier 1 (1 visit), index 4 = tier 5 (21+ visits).
-    static func colors(colorblind: Bool) -> [UIColor] {
-        let start = colorblind ? Constants.colorblindGradientStart : Constants.defaultGradientStart
-        let end = colorblind ? Constants.colorblindGradientEnd : Constants.defaultGradientEnd
+    static func colors() -> [UIColor] {
+        let start = Constants.gradientStart
+        let end = Constants.gradientEnd
         let n = Constants.heatTiers
         let (alphaLow, alphaHigh) = Constants.heatAlphaRange
 

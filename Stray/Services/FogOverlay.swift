@@ -14,16 +14,11 @@ final class FogOverlay: NSObject, MKOverlay {
 
 final class FogOverlayRenderer: MKOverlayRenderer {
     let gridEngine: GridEngine
-    private var heatColors: [UIColor]
+    private let heatColors = HeatGradient.colors()
 
-    init(overlay: MKOverlay, gridEngine: GridEngine, colorblind: Bool = false) {
+    init(overlay: MKOverlay, gridEngine: GridEngine) {
         self.gridEngine = gridEngine
-        self.heatColors = HeatGradient.colors(colorblind: colorblind)
         super.init(overlay: overlay)
-    }
-
-    func updateColorblindMode(_ colorblind: Bool) {
-        heatColors = HeatGradient.colors(colorblind: colorblind)
     }
 
     override func draw(_ mapRect: MKMapRect, zoomScale: MKZoomScale, in context: CGContext) {

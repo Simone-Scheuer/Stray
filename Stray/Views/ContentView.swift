@@ -22,7 +22,6 @@ struct ContentView: View {
     @AppStorage(Constants.allowRotationKey) private var allowRotation = true
     @AppStorage(Constants.showPhotoDotsKey) private var showPhotoDots = false
     @AppStorage(Constants.mapStyleKey) private var mapStyle = "satellite"
-    @AppStorage(Constants.colorblindModeKey) private var colorblindMode = false
 
     @State private var showStats = false
     @State private var showSettings = false
@@ -63,7 +62,6 @@ struct ContentView: View {
                 showTraffic: showTraffic,
                 allowRotation: allowRotation,
                 mapStyle: mapStyle,
-                colorblindMode: colorblindMode,
                 sessionPathPolyline: sessionViewModel?.pathPolyline,
                 isFollowingUser: $isFollowingUser,
                 onCellTapped: { cell in
@@ -581,7 +579,7 @@ private struct SplashOverlay: View {
     @State private var animationPhase: Double = 0
 
     private let gridSize = 5
-    private let colors: [Color] = HeatGradient.colors(colorblind: false).map {
+    private let colors: [Color] = HeatGradient.colors().map {
         Color($0.withAlphaComponent(1.0))
     }
 
