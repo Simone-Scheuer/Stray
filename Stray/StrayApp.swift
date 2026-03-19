@@ -37,6 +37,7 @@ struct StrayApp: App {
 
         persistence.deduplicateCells()
         persistence.deduplicateSpecialTiles()
+        persistence.deduplicateDailySummaries()
         persistence.fixupDailySummaryActiveFlags()
         persistence.backfillMissingCities()
         grid.loadCells(from: context)
@@ -217,6 +218,7 @@ struct StrayApp: App {
         let dedupService = PersistenceService(context: context)
         dedupService.deduplicateCells()
         dedupService.deduplicateSpecialTiles()
+        dedupService.deduplicateDailySummaries()
         dedupService.fixupDailySummaryActiveFlags()
         gridEngine.loadCells(from: context)
         gridEngine.loadSpecialTiles(from: context)

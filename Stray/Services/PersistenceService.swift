@@ -393,6 +393,37 @@ final class PersistenceService {
         }
     }
 
+    func deduplicateDailySummaries() {
+        let descriptor = FetchDescriptor<DailySummary>()
+        let all: [DailySummary]
+        do {
+            all = try context.fetch(descriptor)
+        } catch {
+            Self.logger.error("Failed to fetch daily summaries for dedup: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+
+        var grouped: [String: [DailySummary]] = [:]
+        for summary in all {
+            grouped[summary.dateString, default: []].append(summary)
+        }
+
+        for (_, summaries) in grouped where summaries.count > 1 {
+            // Keep the one with the most data, merge the rest
+            let sorted = summaries.sorted { $0.cellsRevealed > $1.cellsRevealed }
+            guard let keeper = sorted.first else { continue }
+
+            for duplicate in sorted.dropFirst() {
+                keeper.cellsRevealed = max(keeper.cellsRevealed, keeper.cellsRevealed)
+                keeper.distanceMeters = max(keeper.distanceMeters, duplicate.distanceMeters)
+                keeper.stepCount = max(keeper.stepCount, duplicate.stepCount)
+                keeper.isActiveDay = keeper.isActiveDay || duplicate.isActiveDay
+                context.delete(duplicate)
+            }
+        }
+        save()
+    }
+
     func deduplicateSpecialTiles() {
         let allTiles = fetchAllSpecialTiles()
         var grouped: [String: [SpecialTile]] = [:]
