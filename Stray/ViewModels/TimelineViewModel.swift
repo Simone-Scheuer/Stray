@@ -6,7 +6,8 @@ final class TimelineViewModel {
     var selectedIndex: Int = 0
 
     var selectedDay: DailySummary? {
-        activeDays.isEmpty ? nil : activeDays[selectedIndex]
+        guard selectedIndex >= 0 && selectedIndex < activeDays.count else { return nil }
+        return activeDays[selectedIndex]
     }
 
     var canGoBack: Bool { selectedIndex > 0 }

@@ -178,5 +178,8 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
+        if isTracking && (authorizationStatus == .denied || authorizationStatus == .restricted) {
+            stopTracking()
+        }
     }
 }
