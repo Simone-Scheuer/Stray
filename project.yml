@@ -8,6 +8,8 @@ options:
 settings:
   base:
     SWIFT_VERSION: "5.9"
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: "1"
 
 targets:
   Stray:
@@ -19,6 +21,12 @@ targets:
       - Stray
     dependencies:
       - sdk: HealthKit.framework
+    capabilities:
+      iCloud:
+        cloudKit:
+          containers:
+            - iCloud.com.stray.app
+      HealthKit: true
     info:
       path: Stray/Info.plist
       properties:
@@ -32,14 +40,8 @@ targets:
           - location
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
-          - UIInterfaceOrientationLandscapeLeft
-          - UIInterfaceOrientationLandscapeRight
-          - UIInterfaceOrientationPortraitUpsideDown
         UISupportedInterfaceOrientations~ipad:
           - UIInterfaceOrientationPortrait
-          - UIInterfaceOrientationLandscapeLeft
-          - UIInterfaceOrientationLandscapeRight
-          - UIInterfaceOrientationPortraitUpsideDown
         UILaunchScreen: {}
     settings:
       base:
