@@ -26,6 +26,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     var mutedMapStyle: Bool = true
     var showTraffic: Bool = false
     var allowRotation: Bool = true
+    var mapStyle: String = "satellite"
     var sessionPathPolyline: MKPolyline?
     @Binding var isFollowingUser: Bool
     var onCellTapped: ((GridCell) -> Void)?
@@ -42,15 +43,12 @@ struct MapViewRepresentable: UIViewRepresentable {
         mapView.showsCompass = false
         mapView.showsScale = false
         mapView.isRotateEnabled = allowRotation
+        mapView.overrideUserInterfaceStyle = .dark
 
-        let config = MKStandardMapConfiguration(
-            emphasisStyle: mutedMapStyle ? .muted : .default
+        mapView.preferredConfiguration = Self.buildMapConfig(
+            style: mapStyle, mutedMapStyle: mutedMapStyle,
+            showTraffic: showTraffic, showMapLabels: showMapLabels
         )
-        config.showsTraffic = showTraffic
-        if !showMapLabels {
-            config.pointOfInterestFilter = .excludingAll
-        }
-        mapView.preferredConfiguration = config
 
         mapView.accessibilityLabel = "Exploration map"
 
@@ -105,18 +103,16 @@ struct MapViewRepresentable: UIViewRepresentable {
         let configChanged = showMapLabels != context.coordinator.lastShowMapLabels
             || mutedMapStyle != context.coordinator.lastMutedMapStyle
             || showTraffic != context.coordinator.lastShowTraffic
+            || mapStyle != context.coordinator.lastMapStyle
         if configChanged {
             context.coordinator.lastShowMapLabels = showMapLabels
             context.coordinator.lastMutedMapStyle = mutedMapStyle
             context.coordinator.lastShowTraffic = showTraffic
-            let config = MKStandardMapConfiguration(
-                emphasisStyle: mutedMapStyle ? .muted : .default
+            context.coordinator.lastMapStyle = mapStyle
+            uiView.preferredConfiguration = Self.buildMapConfig(
+                style: mapStyle, mutedMapStyle: mutedMapStyle,
+                showTraffic: showTraffic, showMapLabels: showMapLabels
             )
-            config.showsTraffic = showTraffic
-            if !showMapLabels {
-                config.pointOfInterestFilter = .excludingAll
-            }
-            uiView.preferredConfiguration = config
         }
 
         if allowRotation != context.coordinator.lastAllowRotation {
@@ -136,6 +132,26 @@ struct MapViewRepresentable: UIViewRepresentable {
         }
     }
 
+    static func buildMapConfig(style: String, mutedMapStyle: Bool, showTraffic: Bool, showMapLabels: Bool) -> MKMapConfiguration {
+        let poiFilter: MKPointOfInterestFilter? = showMapLabels ? nil : .excludingAll
+        switch style {
+        case "satellite":
+            return MKImageryMapConfiguration()
+        case "hybrid":
+            let config = MKHybridMapConfiguration()
+            config.showsTraffic = showTraffic
+            if let filter = poiFilter { config.pointOfInterestFilter = filter }
+            return config
+        default:
+            let config = MKStandardMapConfiguration(
+                emphasisStyle: mutedMapStyle ? .muted : .default
+            )
+            config.showsTraffic = showTraffic
+            if let filter = poiFilter { config.pointOfInterestFilter = filter }
+            return config
+        }
+    }
+
     // MARK: - Coordinator
 
     final class Coordinator: NSObject, MKMapViewDelegate {
@@ -146,6 +162,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         var lastMutedMapStyle: Bool = true
         var lastShowTraffic: Bool = false
         var lastAllowRotation: Bool = true
+        var lastMapStyle: String = "satellite"
         var onCellTapped: ((GridCell) -> Void)?
         var compassTargetAnnotation: CompassTargetAnnotation?
         var regionAnnotations: [RegionAnnotation] = []

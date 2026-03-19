@@ -15,6 +15,9 @@ final class FogOverlay: NSObject, MKOverlay {
 final class FogOverlayRenderer: MKOverlayRenderer {
     let gridEngine: GridEngine
 
+    /// Cached noise texture (generated once, reused across draw calls)
+    private static let noiseImage: CGImage? = generateNoiseTexture(size: 128, intensity: 0.08)
+
     init(overlay: MKOverlay, gridEngine: GridEngine) {
         self.gridEngine = gridEngine
         super.init(overlay: overlay)
@@ -37,6 +40,26 @@ final class FogOverlayRenderer: MKOverlayRenderer {
         // Fill entire draw rect with fog
         context.setFillColor(Constants.fogColor.withAlphaComponent(fogAlpha).cgColor)
         context.fill(drawRect)
+
+        // Subtle noise texture over fog — gives it a misty, organic feel
+        if let noise = Self.noiseImage {
+            context.saveGState()
+            context.clip(to: drawRect)
+            // Tile the noise pattern across the draw rect at a fixed visual size
+            let tileSize: CGFloat = 256
+            let startX = floor(drawRect.minX / tileSize) * tileSize
+            let startY = floor(drawRect.minY / tileSize) * tileSize
+            var y = startY
+            while y < drawRect.maxY {
+                var x = startX
+                while x < drawRect.maxX {
+                    context.draw(noise, in: CGRect(x: x, y: y, width: tileSize, height: tileSize))
+                    x += tileSize
+                }
+                y += tileSize
+            }
+            context.restoreGState()
+        }
 
         // At very low zoom, individual 50m cells are invisible — skip the query
         if region.span.latitudeDelta > 1.0 {
@@ -174,4 +197,79 @@ final class FogOverlayRenderer: MKOverlayRenderer {
         default: return Constants.heatGoldenGlow
         }
     }
+}
+
+// MARK: - Fog Noise Texture Generator
+
+/// Generates a tileable noise texture image with subtle brightness variations.
+/// The image is white with varying alpha, drawn over the dark fog to create
+/// a misty, organic look. Generated once at startup and cached.
+private func generateNoiseTexture(size: Int, intensity: Double) -> CGImage? {
+    let byteCount = size * size * 4
+    var pixels = [UInt8](repeating: 0, count: byteCount)
+
+    // Simple value noise with smoothing for a cloudy look
+    // First pass: random base values
+    var raw = [Double](repeating: 0, count: size * size)
+    for i in 0..<(size * size) {
+        raw[i] = Double.random(in: 0...1)
+    }
+
+    // Smooth with a 3x3 box blur (wrapping for tileability)
+    var smoothed = [Double](repeating: 0, count: size * size)
+    for y in 0..<size {
+        for x in 0..<size {
+            var sum: Double = 0
+            for dy in -1...1 {
+                for dx in -1...1 {
+                    let sx = (x + dx + size) % size
+                    let sy = (y + dy + size) % size
+                    sum += raw[sy * size + sx]
+                }
+            }
+            smoothed[y * size + x] = sum / 9.0
+        }
+    }
+
+    // Second smoothing pass for softer clouds
+    var cloud = [Double](repeating: 0, count: size * size)
+    for y in 0..<size {
+        for x in 0..<size {
+            var sum: Double = 0
+            for dy in -2...2 {
+                for dx in -2...2 {
+                    let sx = (x + dx + size) % size
+                    let sy = (y + dy + size) % size
+                    sum += smoothed[sy * size + sx]
+                }
+            }
+            cloud[y * size + x] = sum / 25.0
+        }
+    }
+
+    // Write pixels: white color with varying alpha based on noise
+    for y in 0..<size {
+        for x in 0..<size {
+            let idx = (y * size + x) * 4
+            let noise = cloud[y * size + x]
+            let whiteAlpha = UInt8(max(0, min(255, noise * intensity * 255.0)))
+            pixels[idx + 0] = 255       // R
+            pixels[idx + 1] = 255       // G
+            pixels[idx + 2] = 255       // B
+            pixels[idx + 3] = whiteAlpha // A — subtle white wisps
+        }
+    }
+
+    guard let provider = CGDataProvider(data: Data(pixels) as CFData),
+          let image = CGImage(
+            width: size, height: size,
+            bitsPerComponent: 8, bitsPerPixel: 32,
+            bytesPerRow: size * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
+            provider: provider,
+            decode: nil, shouldInterpolate: true,
+            intent: .defaultIntent
+          ) else { return nil }
+    return image
 }

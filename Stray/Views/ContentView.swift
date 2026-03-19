@@ -21,6 +21,7 @@ struct ContentView: View {
     @AppStorage(Constants.showTrafficKey) private var showTraffic = false
     @AppStorage(Constants.allowRotationKey) private var allowRotation = true
     @AppStorage(Constants.showPhotoDotsKey) private var showPhotoDots = false
+    @AppStorage(Constants.mapStyleKey) private var mapStyle = "satellite"
 
     @State private var showStats = false
     @State private var showSettings = false
@@ -59,6 +60,7 @@ struct ContentView: View {
                 mutedMapStyle: mutedMapStyle,
                 showTraffic: showTraffic,
                 allowRotation: allowRotation,
+                mapStyle: mapStyle,
                 sessionPathPolyline: sessionViewModel?.pathPolyline,
                 isFollowingUser: $isFollowingUser,
                 onCellTapped: { cell in
@@ -538,11 +540,11 @@ private struct SplashOverlay: View {
 
     private let gridSize = 5
     private let colors: [Color] = [
-        Color(UIColor(red: 0.3, green: 0.5, blue: 0.9, alpha: 1.0)),
-        Color(UIColor(red: 0.35, green: 0.55, blue: 0.8, alpha: 1.0)),
-        Color(UIColor(red: 0.55, green: 0.5, blue: 0.45, alpha: 1.0)),
-        Color(UIColor(red: 0.9, green: 0.6, blue: 0.2, alpha: 1.0)),
-        Color(UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 1.0)),
+        Color(UIColor(red: 0.2, green: 0.6, blue: 0.7, alpha: 1.0)),   // teal
+        Color(UIColor(red: 0.3, green: 0.45, blue: 0.8, alpha: 1.0)),  // slate blue
+        Color(UIColor(red: 0.4, green: 0.35, blue: 0.75, alpha: 1.0)), // indigo
+        Color(UIColor(red: 0.9, green: 0.6, blue: 0.2, alpha: 1.0)),   // amber
+        Color(UIColor(red: 1.0, green: 0.85, blue: 0.3, alpha: 1.0)),  // golden glow
     ]
 
     var body: some View {

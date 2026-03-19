@@ -10,6 +10,7 @@ struct SettingsView: View {
     @AppStorage(Constants.showTrafficKey) private var showTraffic = false
     @AppStorage(Constants.allowRotationKey) private var allowRotation = true
     @AppStorage(Constants.showPhotoDotsKey) private var showPhotoDots = false
+    @AppStorage(Constants.mapStyleKey) private var mapStyle = "satellite"
 
     var body: some View {
         NavigationStack {
@@ -55,9 +56,18 @@ struct SettingsView: View {
 
     private var mapSection: some View {
         Section {
-            Toggle("Muted Style", isOn: $mutedMapStyle)
-            Toggle("Show Labels", isOn: $showMapLabels)
-            Toggle("Show Traffic", isOn: $showTraffic)
+            Picker("Map Style", selection: $mapStyle) {
+                Text("Satellite").tag("satellite")
+                Text("Hybrid").tag("hybrid")
+                Text("Standard").tag("standard")
+            }
+            if mapStyle == "standard" {
+                Toggle("Muted Style", isOn: $mutedMapStyle)
+            }
+            if mapStyle != "satellite" {
+                Toggle("Show Labels", isOn: $showMapLabels)
+                Toggle("Show Traffic", isOn: $showTraffic)
+            }
             Toggle("Allow Rotation", isOn: $allowRotation)
             if photoService.isAuthorized {
                 Toggle("Show Photo Markers", isOn: $showPhotoDots)
@@ -65,7 +75,9 @@ struct SettingsView: View {
         } header: {
             Text("Map")
         } footer: {
-            Text("Muted style dims the base map so your exploration colors stand out more.")
+            Text(mapStyle == "satellite"
+                 ? "Satellite view shows the real world beneath your fog — revealed areas show aerial imagery."
+                 : "Muted style dims the base map so your exploration colors stand out more.")
         }
     }
 
