@@ -4,6 +4,7 @@ import Photos
 struct OnboardingView: View {
     let locationService: LocationService
     let photoService: PhotoService
+    let healthService: HealthService
     let onComplete: () -> Void
 
     @State private var currentPage = 0
@@ -17,8 +18,13 @@ struct OnboardingView: View {
             locationPage
                 .tag(1)
 
+            if healthService.isAvailable {
+                healthPage
+                    .tag(2)
+            }
+
             photoPage
-                .tag(2)
+                .tag(photoPageTag)
         }
         .tabViewStyle(.page(indexDisplayMode: .always))
         .indexViewStyle(.page(backgroundDisplayMode: .always))
@@ -29,6 +35,8 @@ struct OnboardingView: View {
             }
         }
     }
+
+    private var photoPageTag: Int { healthService.isAvailable ? 3 : 2 }
 
     // MARK: - Pages
 
@@ -117,6 +125,59 @@ struct OnboardingView: View {
                     completeOnboarding()
                 } label: {
                     Text("Not Now")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+            }
+            .padding(.horizontal, 32)
+            .padding(.bottom, 48)
+        }
+    }
+
+    // MARK: - Health Page
+
+    private var healthPage: some View {
+        VStack(spacing: 32) {
+            Spacer()
+
+            Image(systemName: "heart.fill")
+                .font(.system(size: 64))
+                .foregroundStyle(.red)
+                .accessibilityHidden(true)
+
+            VStack(spacing: 16) {
+                Text("Accurate Steps")
+                    .font(.largeTitle.bold())
+                    .foregroundStyle(.white)
+
+                Text("Stray can read your step count and walking distance from Health for more accurate stats. This is optional — we'll estimate from GPS if you skip.")
+                    .font(.body)
+                    .foregroundStyle(.white.opacity(0.7))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+            }
+
+            Spacer()
+
+            VStack(spacing: 12) {
+                Button {
+                    Task {
+                        let _ = await healthService.requestAuthorization()
+                        withAnimation { currentPage = photoPageTag }
+                    }
+                } label: {
+                    Text("Allow Health Access")
+                        .font(.headline)
+                        .foregroundStyle(.black)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(.white, in: RoundedRectangle(cornerRadius: 14))
+                }
+
+                Button {
+                    withAnimation { currentPage = photoPageTag }
+                } label: {
+                    Text("Skip")
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.5))
                 }

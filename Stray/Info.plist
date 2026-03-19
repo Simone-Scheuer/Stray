@@ -20,6 +20,8 @@
 	<string>1</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Stray uses the camera so you can capture moments during exploration.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>Stray uses Health data to show accurate step counts and walking distance. You can skip this — we'll estimate from GPS instead.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Always-on location lets Stray track your exploration even when the app is in the background, so you never miss a step.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

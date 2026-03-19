@@ -6,6 +6,8 @@ private struct SessionSnapshot {
     let cells: Int
     let distance: Double
     let steps: Int
+    let healthDistance: Double?
+    let healthSteps: Int?
 }
 
 struct ContentView: View {
@@ -13,6 +15,7 @@ struct ContentView: View {
     @Environment(\.persistenceService) var persistenceService
     @Environment(\.straySessionViewModel) var sessionViewModel
     @Environment(\.photoService) var photoService
+    @Environment(\.healthService) var healthService
     @AppStorage(Constants.showMapLabelsKey) private var showMapLabels = false
     @AppStorage(Constants.mutedMapStyleKey) private var mutedMapStyle = true
     @AppStorage(Constants.showTrafficKey) private var showTraffic = false
@@ -43,6 +46,10 @@ struct ContentView: View {
 
     @State private var showPhotoMode = false
     @State private var showSplash = true
+
+    @State private var healthSteps: Int?
+    @State private var healthDistance: Double?
+    @State private var healthRefreshTask: Task<Void, Never>?
 
     var body: some View {
         ZStack {
@@ -91,6 +98,7 @@ struct ContentView: View {
                                         summaryDismissTask?.cancel()
                                         showSessionSummary = false
                                         vm.startSession()
+                                        startHealthRefresh()
                                     }
                                 }
                             }
@@ -280,9 +288,12 @@ struct ContentView: View {
                         duration: vm.elapsedSeconds,
                         cells: vm.cellsRevealedInSession,
                         distance: vm.distanceInSession,
-                        steps: vm.estimatedStepsInSession
+                        steps: vm.estimatedStepsInSession,
+                        healthDistance: healthDistance,
+                        healthSteps: healthSteps
                     )
                     vm.endSession()
+                    stopHealthRefresh()
                     lastSession = snapshot
                     showSessionSummary = true
                     summaryDismissTask?.cancel()
@@ -392,7 +403,9 @@ struct ContentView: View {
     // MARK: - Session HUD
 
     private func sessionHUD(vm: StraySessionViewModel) -> some View {
-        TimelineView(.periodic(from: .now, by: 1.0)) { _ in
+        let displayDistance = healthDistance ?? vm.distanceInSession
+        let displaySteps = healthSteps ?? vm.estimatedStepsInSession
+        return TimelineView(.periodic(from: .now, by: 1.0)) { _ in
             HStack(spacing: 16) {
                 if vm.isSessionPaused {
                     Text("Paused")
@@ -400,7 +413,8 @@ struct ContentView: View {
                 }
                 Label(formattedTime(vm.elapsedSeconds), systemImage: "clock")
                 Label("\(vm.cellsRevealedInSession)", systemImage: "square.grid.2x2")
-                Label(formattedDistance(vm.distanceInSession), systemImage: "figure.walk")
+                Label(formattedDistance(displayDistance), systemImage: "figure.walk")
+                Label("\(displaySteps)", systemImage: "shoeprints.fill")
             }
             .font(.caption.monospacedDigit())
             .foregroundStyle(.white)
@@ -408,24 +422,26 @@ struct ContentView: View {
             .padding(.vertical, 10)
             .background(.black.opacity(0.6), in: Capsule())
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Session\(vm.isSessionPaused ? " paused" : ""): \(formattedTime(vm.elapsedSeconds)) elapsed, \(vm.cellsRevealedInSession) cells revealed, \(formattedDistance(vm.distanceInSession)) walked")
+            .accessibilityLabel("Session\(vm.isSessionPaused ? " paused" : ""): \(formattedTime(vm.elapsedSeconds)) elapsed, \(vm.cellsRevealedInSession) cells revealed, \(formattedDistance(displayDistance)) walked, \(displaySteps) steps")
         }
     }
 
     // MARK: - Session Summary
 
     private func sessionSummaryCard(snap: SessionSnapshot) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let displayDistance = snap.healthDistance ?? snap.distance
+        let displaySteps = snap.healthSteps ?? snap.steps
+        return VStack(alignment: .leading, spacing: 12) {
             Text("Session Complete")
                 .font(.headline)
                 .foregroundStyle(.white)
             HStack(spacing: 20) {
                 summaryItem(icon: "clock", value: formattedTime(snap.duration))
                 summaryItem(icon: "square.grid.2x2", value: "\(snap.cells)")
-                summaryItem(icon: "figure.walk", value: formattedDistance(snap.distance))
+                summaryItem(icon: "figure.walk", value: formattedDistance(displayDistance))
             }
             HStack(spacing: 20) {
-                summaryItem(icon: "shoeprints.fill", value: "\(snap.steps)")
+                summaryItem(icon: "shoeprints.fill", value: "\(displaySteps)")
             }
         }
         .padding(20)
@@ -484,6 +500,34 @@ struct ContentView: View {
 
     private func formattedDistance(_ meters: Double) -> String {
         formatDistance(meters)
+    }
+
+    // MARK: - HealthKit Session Refresh
+
+    private func startHealthRefresh() {
+        guard healthService.isAuthorized else { return }
+        healthSteps = nil
+        healthDistance = nil
+        healthRefreshTask?.cancel()
+        healthRefreshTask = Task {
+            while !Task.isCancelled {
+                guard let start = sessionViewModel?.sessionStartTime else { break }
+                let now = Date()
+                async let s = healthService.steps(from: start, to: now)
+                async let d = healthService.distance(from: start, to: now)
+                let (steps, dist) = await (s, d)
+                if !Task.isCancelled {
+                    healthSteps = steps
+                    healthDistance = dist
+                }
+                try? await Task.sleep(for: .seconds(10))
+            }
+        }
+    }
+
+    private func stopHealthRefresh() {
+        healthRefreshTask?.cancel()
+        healthRefreshTask = nil
     }
 }
 

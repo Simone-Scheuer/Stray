@@ -12,6 +12,7 @@ struct StrayApp: App {
     private let straySessionViewModel: StraySessionViewModel
     private let statsViewModel: StatsViewModel
     private let photoService: PhotoService
+    private let healthService: HealthService
 
     /// Tracks whether a dedup-on-foreground pass has already run this activation cycle
     @State private var showOnboarding: Bool
@@ -111,6 +112,7 @@ struct StrayApp: App {
         }
 
         let photo = PhotoService()
+        let health = HealthService()
 
         self.gridEngine = grid
         self.locationService = location
@@ -118,6 +120,7 @@ struct StrayApp: App {
         self.straySessionViewModel = sessionVM
         self.statsViewModel = StatsViewModel()
         self.photoService = photo
+        self.healthService = health
 
         let onboardingCompleted = UserDefaults.standard.bool(forKey: Constants.hasCompletedOnboardingKey)
         self._showOnboarding = State(initialValue: !onboardingCompleted)
@@ -132,8 +135,9 @@ struct StrayApp: App {
                 .environment(\.straySessionViewModel, straySessionViewModel)
                 .environment(\.statsViewModel, statsViewModel)
                 .environment(\.photoService, photoService)
+                .environment(\.healthService, healthService)
                 .fullScreenCover(isPresented: $showOnboarding) {
-                    OnboardingView(locationService: locationService, photoService: photoService) {
+                    OnboardingView(locationService: locationService, photoService: photoService, healthService: healthService) {
                         showOnboarding = false
                         bootRevealFromPhotos()
                     }
@@ -154,6 +158,7 @@ struct StrayApp: App {
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
                     deduplicateAndReload()
                     photoService.refreshAuthorizationStatus()
+                    healthService.refreshAuthorizationStatus()
                 }
         }
         .modelContainer(modelContainer)

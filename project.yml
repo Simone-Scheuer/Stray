@@ -17,6 +17,8 @@ targets:
       iOS: "17.0"
     sources:
       - Stray
+    dependencies:
+      - sdk: HealthKit.framework
     info:
       path: Stray/Info.plist
       properties:
@@ -25,6 +27,7 @@ targets:
         NSPhotoLibraryUsageDescription: "Stray reads photo locations to show your photos on explored tiles and reveal places you've already been."
         NSPhotoLibraryAddUsageDescription: "Stray saves photos you take during exploration to your camera roll."
         NSCameraUsageDescription: "Stray uses the camera so you can capture moments during exploration."
+        NSHealthShareUsageDescription: "Stray uses Health data to show accurate step counts and walking distance. You can skip this — we'll estimate from GPS instead."
         UIBackgroundModes:
           - location
         UISupportedInterfaceOrientations:

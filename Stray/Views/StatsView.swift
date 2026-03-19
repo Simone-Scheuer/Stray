@@ -7,7 +7,11 @@ struct StatsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.statsViewModel) var statsViewModel
     @Environment(\.photoService) var photoService
+    @Environment(\.healthService) var healthService
     @Environment(\.dismiss) private var dismiss
+
+    @State private var healthTodaySteps: Int?
+    @State private var healthTodayDistance: Double?
 
     var body: some View {
         NavigationStack {
@@ -33,6 +37,7 @@ struct StatsView: View {
             }
             .onAppear {
                 statsViewModel.refresh(context: modelContext)
+                refreshHealthStats()
             }
         }
     }
@@ -61,7 +66,9 @@ struct StatsView: View {
     // MARK: - Today
 
     private var todaySection: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        let displayDistance = healthTodayDistance.map { formatDistance($0) } ?? statsViewModel.todayDistance
+        let displaySteps = healthTodaySteps.map { formattedCount($0) } ?? statsViewModel.todaySteps
+        return VStack(alignment: .leading, spacing: 16) {
             Text("Today")
                 .font(.headline)
                 .foregroundStyle(.secondary)
@@ -69,9 +76,9 @@ struct StatsView: View {
             HStack(spacing: 0) {
                 statCard(value: "\(statsViewModel.todayCells)", label: "cells")
                 Spacer()
-                statCard(value: statsViewModel.todayDistance, label: "walked")
+                statCard(value: displayDistance, label: "walked")
                 Spacer()
-                statCard(value: statsViewModel.todaySteps, label: "steps")
+                statCard(value: displaySteps, label: "steps")
             }
         }
     }
@@ -237,5 +244,16 @@ struct StatsView: View {
         formatter.numberStyle = .decimal
         formatter.groupingSeparator = ","
         return formatter.string(from: NSNumber(value: count)) ?? "\(count)"
+    }
+
+    private func refreshHealthStats() {
+        guard healthService.isAuthorized else { return }
+        Task {
+            async let steps = healthService.todaySteps()
+            async let dist = healthService.todayDistance()
+            let (s, d) = await (steps, dist)
+            healthTodaySteps = s
+            healthTodayDistance = d
+        }
     }
 }
