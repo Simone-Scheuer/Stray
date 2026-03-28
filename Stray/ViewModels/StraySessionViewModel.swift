@@ -85,7 +85,7 @@ final class StraySessionViewModel {
         locationService.switchMode(active: true)
     }
 
-    func endSession() {
+    func endSession(healthSteps: Int? = nil, healthDistance: Double? = nil) {
         guard isSessionActive else { return }
         // Finalize any active pause
         if isSessionPaused, let pauseStart = pauseStartTime {
@@ -113,7 +113,9 @@ final class StraySessionViewModel {
                 distance: distanceInSession,
                 duration: activeDuration,
                 pausedDuration: accumulatedPausedTime,
-                pathData: encodedPath
+                pathData: encodedPath,
+                healthSteps: healthSteps,
+                healthDistance: healthDistance
             )
         }
 

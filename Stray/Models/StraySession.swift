@@ -10,6 +10,8 @@ final class StraySession {
     var durationSeconds: Double = 0.0
     var pausedDurationSeconds: Double = 0.0
     var pathData: Data? = nil
+    var healthStepCount: Int? = nil
+    var healthDistanceMeters: Double? = nil
 
     init() {
         self.startedAt = Date()

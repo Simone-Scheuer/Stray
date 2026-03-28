@@ -4,6 +4,7 @@ import Photos
 struct SettingsView: View {
     @Environment(\.locationService) var locationService
     @Environment(\.photoService) var photoService
+    @Environment(\.healthService) var healthService
     @Environment(\.dismiss) private var dismiss
     @AppStorage(Constants.showMapLabelsKey) private var showMapLabels = false
     @AppStorage(Constants.mutedMapStyleKey) private var mutedMapStyle = true
@@ -19,6 +20,9 @@ struct SettingsView: View {
                 mapSection
                 locationSection
                 photoSection
+                if healthService.isAvailable {
+                    healthSection
+                }
                 aboutSection
             }
             .navigationTitle("Settings")
@@ -156,6 +160,29 @@ struct SettingsView: View {
         case .authorized: return "Full Access"
         case .limited: return "Limited"
         @unknown default: return "Unknown"
+        }
+    }
+
+    // MARK: - Health
+
+    private var healthSection: some View {
+        Section {
+            HStack {
+                Text("Permission")
+                Spacer()
+                Text(healthService.isAuthorized ? "Authorized" : "Not Set")
+                    .foregroundStyle(.secondary)
+            }
+
+            if !healthService.isAuthorized {
+                Button("Allow Health Access") {
+                    Task { let _ = await healthService.requestAuthorization() }
+                }
+            }
+        } header: {
+            Text("Health")
+        } footer: {
+            Text("Stray reads steps and distance from Apple Health to show accurate session stats.")
         }
     }
 

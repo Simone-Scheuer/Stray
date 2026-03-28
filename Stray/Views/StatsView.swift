@@ -125,6 +125,7 @@ struct StatsView: View {
             } else {
                 VStack(spacing: 0) {
                     ForEach(Array(statsViewModel.sessions.enumerated()), id: \.offset) { index, session in
+                        let displayDistance = session.healthDistanceMeters ?? session.distanceMeters
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(session.startedAt.formatted(date: .abbreviated, time: .shortened))
@@ -135,7 +136,7 @@ struct StatsView: View {
                             }
                             Spacer()
                             VStack(alignment: .trailing, spacing: 2) {
-                                Text(formatDistance(session.distanceMeters))
+                                Text(formatDistance(displayDistance))
                                     .font(.body.monospacedDigit())
                                     .foregroundStyle(.secondary)
                                 Text("\(session.cellsRevealedCount) cells")
@@ -146,7 +147,7 @@ struct StatsView: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
                         .accessibilityElement(children: .combine)
-                        .accessibilityLabel("\(session.startedAt.formatted(date: .abbreviated, time: .shortened)), \(statsViewModel.formattedDuration(session.durationSeconds)), \(formatDistance(session.distanceMeters)), \(session.cellsRevealedCount) cells")
+                        .accessibilityLabel("\(session.startedAt.formatted(date: .abbreviated, time: .shortened)), \(statsViewModel.formattedDuration(session.durationSeconds)), \(formatDistance(displayDistance)), \(session.cellsRevealedCount) cells")
 
                         if index < statsViewModel.sessions.count - 1 {
                             Divider()

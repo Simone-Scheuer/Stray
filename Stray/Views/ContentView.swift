@@ -319,7 +319,7 @@ struct ContentView: View {
                         healthDistance: healthDistance,
                         healthSteps: healthSteps
                     )
-                    vm.endSession()
+                    vm.endSession(healthSteps: healthSteps, healthDistance: healthDistance)
                     stopHealthRefresh()
                     lastSession = snapshot
                     showSessionSummary = true
@@ -559,8 +559,13 @@ struct ContentView: View {
                 async let d = healthService.distance(from: start, to: now)
                 let (steps, dist) = await (s, d)
                 if !Task.isCancelled {
-                    healthSteps = steps
-                    healthDistance = dist
+                    let hasGPSData = (sessionViewModel?.distanceInSession ?? 0) > 0
+                    if steps == 0 && dist == 0 && hasGPSData {
+                        // HealthKit returned zeros but GPS has data — keep GPS values
+                    } else {
+                        healthSteps = steps
+                        healthDistance = dist
+                    }
                 }
                 try? await Task.sleep(for: .seconds(10))
             }

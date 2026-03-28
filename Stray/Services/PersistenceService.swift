@@ -104,6 +104,61 @@ final class PersistenceService {
         }
     }
 
+    /// Logs a cell visit for the daily journey replay. Creates one CellVisit per cell per day.
+    func logCellVisit(cellKey: String, date: Date = Date()) {
+        let day = todayString(for: date)
+        let descriptor = FetchDescriptor<CellVisit>(
+            predicate: #Predicate<CellVisit> { $0.cellKey == cellKey && $0.dateString == day }
+        )
+        do {
+            if try context.fetch(descriptor).first != nil { return }
+        } catch {
+            Self.logger.error("Failed to check CellVisit for \(cellKey, privacy: .public) on \(day, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
+        let visit = CellVisit(cellKey: cellKey, dateString: day)
+        context.insert(visit)
+    }
+
+    /// Fetches all CellVisit records for a given date string (e.g. "2026-03-28").
+    func fetchCellVisits(for dateString: String) -> [CellVisit] {
+        let descriptor = FetchDescriptor<CellVisit>(
+            predicate: #Predicate<CellVisit> { $0.dateString == dateString }
+        )
+        do {
+            return try context.fetch(descriptor)
+        } catch {
+            Self.logger.error("Failed to fetch cell visits for \(dateString, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            return []
+        }
+    }
+
+    /// Deduplicates CellVisit records created by multi-device CloudKit sync.
+    /// Keeps the earliest visitedAt per cellKey+dateString pair.
+    func deduplicateCellVisits() {
+        let descriptor = FetchDescriptor<CellVisit>()
+        let all: [CellVisit]
+        do {
+            all = try context.fetch(descriptor)
+        } catch {
+            Self.logger.error("Failed to fetch cell visits for dedup: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+
+        var grouped: [String: [CellVisit]] = [:]
+        for visit in all {
+            let compositeKey = "\(visit.cellKey)_\(visit.dateString)"
+            grouped[compositeKey, default: []].append(visit)
+        }
+
+        for (_, visits) in grouped where visits.count > 1 {
+            let sorted = visits.sorted { $0.visitedAt < $1.visitedAt }
+            for duplicate in sorted.dropFirst() {
+                context.delete(duplicate)
+            }
+        }
+        save()
+    }
+
     /// Deduplicates RevealedCell records created by multi-device CloudKit sync.
     /// Keeps the earliest firstVisitedAt, sums visitCount, keeps latest lastVisitedAt, keeps first non-nil city.
     func deduplicateCells() {
@@ -239,7 +294,7 @@ final class PersistenceService {
     }
 
     /// Persists a completed Stray session
-    func saveStraySession(startedAt: Date, endedAt: Date, cellsRevealed: Int, distance: Double, duration: Double, pausedDuration: Double = 0, pathData: Data? = nil) {
+    func saveStraySession(startedAt: Date, endedAt: Date, cellsRevealed: Int, distance: Double, duration: Double, pausedDuration: Double = 0, pathData: Data? = nil, healthSteps: Int? = nil, healthDistance: Double? = nil) {
         let session = StraySession()
         session.startedAt = startedAt
         session.endedAt = endedAt
@@ -248,6 +303,8 @@ final class PersistenceService {
         session.durationSeconds = duration
         session.pausedDurationSeconds = pausedDuration
         session.pathData = pathData
+        session.healthStepCount = healthSteps
+        session.healthDistanceMeters = healthDistance
         context.insert(session)
         save()
     }
@@ -465,13 +522,13 @@ final class PersistenceService {
         }
     }
 
-    private func todayString() -> String {
+    private func todayString(for date: Date = Date()) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.timeZone = .current
         // Fixed locale prevents user locale from altering the date format (e.g. calendar systems)
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.string(from: Date())
+        return formatter.string(from: date)
     }
 
     /// ~500m buckets for caching city lookups. Adjacent cells in the same area share a geocode result.

@@ -9,8 +9,11 @@ struct TimelineOverlayView: View {
     @Environment(\.gridEngine) var gridEngine
     @Environment(\.persistenceService) var persistenceService
     @Environment(\.photoService) var photoService
+    @Environment(\.healthService) var healthService
 
     @State private var dayPhotos: [PHAsset] = []
+    @State private var healthDaySteps: Int?
+    @State private var healthDayDistance: Double?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -44,12 +47,22 @@ struct TimelineOverlayView: View {
 
             // Stats for selected day
             if let day = timelineVM.selectedDay {
+                let displayDistance = healthDayDistance ?? day.distanceMeters
+                let displaySteps = healthDaySteps ?? day.stepCount
                 HStack(spacing: 20) {
                     statChip(icon: "map.fill", value: "\(day.cellsRevealed)", label: "cells")
-                    statChip(icon: "figure.walk", value: formatDistance(day.distanceMeters), label: "walked")
-                    statChip(icon: "shoeprints.fill", value: "\(day.stepCount)", label: "steps")
+                    statChip(icon: "figure.walk", value: formatDistance(displayDistance), label: "walked")
+                    statChip(icon: "shoeprints.fill", value: "\(displaySteps)", label: "steps")
                 }
-                .padding(.bottom, 14)
+                .padding(.bottom, 6)
+
+                // Day journey highlight stats (from CellVisit journal)
+                if timelineVM.dayCellCount > 0 {
+                    Text("\(timelineVM.dayCellCount) visited · \(timelineVM.dayNewCellCount) new")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .padding(.bottom, 10)
+                }
             }
 
             // Photo strip for selected day
@@ -97,9 +110,31 @@ struct TimelineOverlayView: View {
         .padding(.bottom, 16)
         .onChange(of: timelineVM.selectedIndex) { _, _ in
             loadPhotosForSelectedDay()
+            refreshHealthForDay()
         }
         .onAppear {
             loadPhotosForSelectedDay()
+            refreshHealthForDay()
+        }
+    }
+
+    private func refreshHealthForDay() {
+        healthDaySteps = nil
+        healthDayDistance = nil
+        guard healthService.isAuthorized, let day = timelineVM.selectedDay else { return }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        guard let dayStart = formatter.date(from: day.dateString) else { return }
+        guard let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: dayStart) else { return }
+        Task {
+            async let s = healthService.steps(from: dayStart, to: dayEnd)
+            async let d = healthService.distance(from: dayStart, to: dayEnd)
+            let (steps, dist) = await (s, d)
+            // Only use HealthKit values if they're non-zero
+            if steps > 0 { healthDaySteps = steps }
+            if dist > 0 { healthDayDistance = dist }
         }
     }
 
