@@ -18,6 +18,8 @@ final class GridEngine {
     private(set) var photoCells: [GridCell: Int]? = nil
     private(set) var heatCells: Bool = false
     private(set) var photoDotsData: [GridCell: Int]? = nil
+    private(set) var dayHighlightCells: Set<GridCell>? = nil
+    private(set) var dayNewCells: Set<GridCell>? = nil
     private(set) var compassTarget: GridCell? = nil
     private(set) var inspectedCell: GridCell? = nil
     private(set) var recentlyRevealedCells: [GridCell: Date] = [:]
@@ -235,8 +237,23 @@ final class GridEngine {
         renderGeneration += 1
     }
 
+    func setDayHighlight(cells: Set<GridCell>, newCells: Set<GridCell>) {
+        dayHighlightCells = cells
+        dayNewCells = newCells
+        renderGeneration += 1
+    }
+
+    func clearDayHighlight() {
+        guard dayHighlightCells != nil else { return }
+        dayHighlightCells = nil
+        dayNewCells = nil
+        renderGeneration += 1
+    }
+
     func exitTimeline() {
         timelineCells = nil
+        dayHighlightCells = nil
+        dayNewCells = nil
         compassTarget = nil
         renderGeneration += 1
     }

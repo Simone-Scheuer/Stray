@@ -22,7 +22,7 @@ struct StrayApp: App {
         let container: ModelContainer
         do {
             container = try ModelContainer(
-                for: RevealedCell.self, StraySession.self, DailySummary.self, SpecialTile.self,
+                for: RevealedCell.self, StraySession.self, DailySummary.self, SpecialTile.self, CellVisit.self,
                 configurations: config
             )
         } catch {
@@ -36,6 +36,7 @@ struct StrayApp: App {
         let location = LocationService()
 
         persistence.deduplicateCells()
+        persistence.deduplicateCellVisits()
         persistence.deduplicateSpecialTiles()
         persistence.deduplicateDailySummaries()
         persistence.fixupDailySummaryActiveFlags()
@@ -83,6 +84,9 @@ struct StrayApp: App {
             if case .cooldownActive = result {} else {
                 let _ = persistence.saveOrUpdateCell(cell, at: coordinate)
             }
+
+            // Log visit for daily journey replay (always, regardless of cooldown)
+            persistence.logCellVisit(cellKey: cell.key)
 
             let isNew: Bool
             if case .newCell = result { isNew = true } else { isNew = false }
@@ -217,6 +221,7 @@ struct StrayApp: App {
         let context = ModelContext(modelContainer)
         let dedupService = PersistenceService(context: context)
         dedupService.deduplicateCells()
+        dedupService.deduplicateCellVisits()
         dedupService.deduplicateSpecialTiles()
         dedupService.deduplicateDailySummaries()
         dedupService.fixupDailySummaryActiveFlags()

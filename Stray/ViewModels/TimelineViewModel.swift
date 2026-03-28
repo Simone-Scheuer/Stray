@@ -4,6 +4,8 @@ import Foundation
 final class TimelineViewModel {
     var activeDays: [DailySummary] = []
     var selectedIndex: Int = 0
+    var dayCellCount: Int = 0
+    var dayNewCellCount: Int = 0
 
     var selectedDay: DailySummary? {
         guard selectedIndex >= 0 && selectedIndex < activeDays.count else { return nil }
@@ -43,6 +45,39 @@ final class TimelineViewModel {
         guard let date = formatter.date(from: day.dateString) else { return }
         let cells = persistence.fetchCellsUpTo(date: date)
         gridEngine.enterTimeline(cells: cells)
+
+        // Apply day highlight from CellVisit journal
+        let visits = persistence.fetchCellVisits(for: day.dateString)
+        if !visits.isEmpty {
+            var dayCells = Set<GridCell>()
+            var newCells = Set<GridCell>()
+
+            let dayStart = Calendar.current.startOfDay(for: date)
+            let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: dayStart) ?? dayStart
+
+            for visit in visits {
+                // Parse cellKey back to GridCell
+                let parts = visit.cellKey.split(separator: "_")
+                guard parts.count == 2,
+                      let latIdx = Int(parts[0]),
+                      let lngIdx = Int(parts[1]) else { continue }
+                let cell = GridCell(latIndex: latIdx, lngIndex: lngIdx)
+                dayCells.insert(cell)
+
+                // Check if this cell was first discovered on this day
+                if let record = persistence.fetchCell(key: visit.cellKey),
+                   record.firstVisitedAt >= dayStart && record.firstVisitedAt < dayEnd {
+                    newCells.insert(cell)
+                }
+            }
+            dayCellCount = dayCells.count
+            dayNewCellCount = newCells.count
+            gridEngine.setDayHighlight(cells: dayCells, newCells: newCells)
+        } else {
+            dayCellCount = 0
+            dayNewCellCount = 0
+            gridEngine.clearDayHighlight()
+        }
     }
 
     func selectIndex(_ index: Int, gridEngine: GridEngine, persistence: PersistenceService) {

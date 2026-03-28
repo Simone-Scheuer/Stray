@@ -50,6 +50,8 @@ final class FogOverlayRenderer: MKOverlayRenderer {
         let cells = gridEngine.cellsWithCounts(in: paddedRegion)
         let isHeatMode = gridEngine.heatCells
         let isPhotoMode = gridEngine.photoCells != nil
+        let dayHighlight = gridEngine.dayHighlightCells
+        let dayNew = gridEngine.dayNewCells
 
         for (cell, count) in cells {
             let cellRect = cellScreenRect(for: cell)
@@ -83,6 +85,22 @@ final class FogOverlayRenderer: MKOverlayRenderer {
                 context.fill(cellRect)
             }
             context.setBlendMode(.normal)
+
+            // Day highlight mode: dim non-day cells, brighten day cells
+            if let dayHighlight {
+                if dayHighlight.contains(cell) {
+                    let isNew = dayNew?.contains(cell) ?? false
+                    let highlightColor = isNew
+                        ? UIColor(red: 0.3, green: 0.8, blue: 1.0, alpha: 0.45)
+                        : UIColor.white.withAlphaComponent(0.3)
+                    context.setFillColor(highlightColor.cgColor)
+                    context.fill(cellRect)
+                } else {
+                    // Dim cells not visited on this day
+                    context.setFillColor(Constants.fogColor.withAlphaComponent(0.5).cgColor)
+                    context.fill(cellRect)
+                }
+            }
 
             if gridEngine.inspectedCell == cell {
                 context.setFillColor(UIColor.white.withAlphaComponent(0.35).cgColor)
