@@ -16,7 +16,7 @@ enum SeedDataService {
 
         // Generate 45 days of walking data, ending yesterday
         let dayCount = 45
-        var allCells: [(GridCell, Date, Int)] = [] // (cell, firstDate, visitCount)
+        // Cell tracking moved to cellTracker dictionary below
         var dailyVisits: [String: [(GridCell, Date)]] = [:] // dateString -> [(cell, visitedAt)]
         var dailyStats: [String: (cells: Int, distance: Double, steps: Int)] = [:]
 

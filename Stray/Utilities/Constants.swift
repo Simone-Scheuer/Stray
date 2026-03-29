@@ -33,6 +33,7 @@ enum Constants {
     static let revealedCellTint = UIColor(hue: 210.0/360.0, saturation: 0.70, brightness: 0.85, alpha: 0.35)
 
     static let specialTileAlpha: CGFloat = 0.55
+    static let fogBlurRadiusFraction: Float = 0.35
 
     static let passiveAccuracyThreshold: CLLocationAccuracy = 100.0
     static let activeAccuracyThreshold: CLLocationAccuracy = 50.0

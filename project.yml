@@ -22,12 +22,13 @@ targets:
     dependencies:
       - sdk: HealthKit.framework
         weak: true
-    capabilities:
-      iCloud:
-        cloudKit:
-          containers:
-            - iCloud.com.simonescheuer.stray
-      HealthKit: true
+    # capabilities:
+    #   iCloud:
+    #     cloudKit:
+    #       containers:
+    #         - iCloud.com.simonescheuer.stray
+    #   HealthKit: true
+    # NOTE: Uncomment when enrolled in Apple Developer Program
     info:
       path: Stray/Info.plist
       properties:

@@ -133,11 +133,7 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
         // Skip stationary updates — biggest battery saver
         // Always deliver the first update so boot reveal can fire
         if hasDeliveredFirstUpdate {
-            if #available(iOS 18.0, *) {
-                if update.stationary { return }
-            } else {
-                if update.isStationary { return }
-            }
+            if update.stationary { return }
         }
 
         guard let location = update.location else { return }
