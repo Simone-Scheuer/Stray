@@ -332,16 +332,16 @@ final class FogOverlayRenderer: MKOverlayRenderer {
         var inBuffer = vImage_Buffer()
         var outBuffer = vImage_Buffer()
 
-        let format = vImage_CGImageFormat(
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        var mutableFormat = vImage_CGImageFormat(
             bitsPerComponent: 8,
             bitsPerPixel: 32,
-            colorSpace: Unmanaged.passRetained(CGColorSpaceCreateDeviceRGB()),
+            colorSpace: Unmanaged.passUnretained(colorSpace),
             bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
             version: 0,
             decode: nil,
             renderingIntent: .defaultIntent
         )
-        var mutableFormat = format
 
         var error = vImageBuffer_InitWithCGImage(
             &inBuffer, &mutableFormat, nil, image, vImage_Flags(kvImageNoFlags)

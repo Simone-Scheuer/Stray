@@ -2,8 +2,9 @@
 id: REQ-054
 title: Offscreen fog rendering with vImage post-process blur
 route: C
-status: claimed
+status: completed
 claimed_at: 2026-03-28T17:40:00Z
+completed_at: 2026-03-28T18:00:00Z
 priority: high
 user_request: UR-018
 related: [REQ-055, REQ-056]
@@ -116,3 +117,32 @@ The REQ itself is the plan — it specifies exact approach, files, methods, and 
 **Coverage**: 100% — REQ was pre-verified by verify-request action
 
 *Verified by verify-plan action*
+
+## Exploration
+
+**Not needed** -- REQ specifies exact files and approach.
+
+*Skipped by work action*
+
+## Implementation Summary
+
+- Added `fogBlurRadiusFraction = 0.35` constant to Constants.swift
+- Added `import Accelerate` to FogOverlay.swift
+- Restructured `draw()` into two-pass rendering:
+  - Pass 1: `drawBlurredFog()` — offscreen CGContext → fog mask → hole punching → 3x vImageBoxConvolve blur → composite
+  - Pass 2: Crisp overlays directly to map context (tints, highlights, photo counts)
+- Added `applyBlur(to:radius:)` helper with proper vImage buffer management (`defer { free }`)
+- Added blur cache (`cachedFogImage`, `cachedGeneration`, `cachedMapRect`) — skips re-blur when unchanged
+- Added `renderFogDirect()` fallback for offscreen context allocation failure
+- Extracted helpers: `drawCellTints()`, `drawInspectionHighlight()`, `drawPhotoCounts()`
+- Added `mapRectsEqual()` helper (MKMapRect isn't Equatable)
+- Handled coordinate flipping for CGContext/UIKit origin differences
+
+*Completed by work action (Route C)*
+
+## Testing
+
+**Tests run:** N/A
+**Result:** No unit test infrastructure. Manual testing required: verify soft fog edges on revealed cells, crisp tints/highlights, blur cache invalidation on zoom/pan, fallback behavior.
+
+*Verified by work action*
