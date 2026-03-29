@@ -1,6 +1,6 @@
 name: Stray
 options:
-  bundleIdPrefix: com.stray
+  bundleIdPrefix: com.simonescheuer
   deploymentTarget:
     iOS: "17.0"
   xcodeVersion: "16.0"
@@ -21,12 +21,14 @@ targets:
       - Stray
     dependencies:
       - sdk: HealthKit.framework
-    capabilities:
-      iCloud:
-        cloudKit:
-          containers:
-            - iCloud.com.stray.app
-      HealthKit: true
+        weak: true
+    # capabilities:
+    #   iCloud:
+    #     cloudKit:
+    #       containers:
+    #         - iCloud.com.simonescheuer.stray
+    #   HealthKit: true
+    # NOTE: Uncomment when enrolled in Apple Developer Program
     info:
       path: Stray/Info.plist
       properties:
@@ -45,7 +47,7 @@ targets:
         UILaunchScreen: {}
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.stray.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.simonescheuer.stray
         SWIFT_VERSION: "5.9"
     entitlements:
       path: Stray/Stray.entitlements

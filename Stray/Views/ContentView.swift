@@ -12,6 +12,7 @@ private struct SessionSnapshot {
 
 struct ContentView: View {
     @Environment(\.gridEngine) var gridEngine
+    @Environment(\.locationService) var locationService
     @Environment(\.persistenceService) var persistenceService
     @Environment(\.straySessionViewModel) var sessionViewModel
     @Environment(\.photoService) var photoService
@@ -41,6 +42,8 @@ struct ContentView: View {
 
     @State private var showPsychocachePrompt = false
     @State private var psychocacheDismissTask: Task<Void, Never>?
+    @State private var showEmptyTimeline = false
+    @State private var emptyTimelineDismissTask: Task<Void, Never>?
     @State private var showCamera = false
     @State private var newCellBurst = 0
     @State private var lastNewCellTime: Date?
@@ -233,6 +236,19 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.4), value: showPsychocachePrompt)
+        .overlay(alignment: .bottom) {
+            if showEmptyTimeline {
+                Text("Start exploring to build your timeline")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.9))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(.black.opacity(0.7), in: Capsule())
+                    .padding(.bottom, 40)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: showEmptyTimeline)
         .onChange(of: sessionViewModel?.cellsRevealedInSession) { old, new in
             guard let new, new > (old ?? 0),
                   let vm = sessionViewModel, vm.isSessionActive, !vm.isSessionPaused else { return }
@@ -292,6 +308,30 @@ struct ContentView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: showPersistenceError)
+        .overlay(alignment: .center) {
+            if locationService?.authorizationStatus == .denied && gridEngine.revealedCells.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "location.slash")
+                        .font(.system(size: 32))
+                        .foregroundStyle(.white.opacity(0.7))
+                    Text("Location access is needed to reveal the map")
+                        .font(.callout)
+                        .foregroundStyle(.white.opacity(0.9))
+                        .multilineTextAlignment(.center)
+                    Button("Open Settings") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                    .font(.callout.weight(.medium))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(.white.opacity(0.2), in: Capsule())
+                }
+                .padding(32)
+            }
+        }
         .onChange(of: persistenceService?.lastPersistenceError != nil) { _, hasError in
             if hasError {
                 showPersistenceError = true
@@ -418,9 +458,16 @@ struct ContentView: View {
         guard let ps = persistenceService else { return }
         if showPhotoMode { exitPhotoMode() }
         timelineVM.load(persistence: ps)
-        if !timelineVM.activeDays.isEmpty {
-            timelineVM.applyDay(gridEngine: gridEngine, persistence: ps)
+        if timelineVM.activeDays.isEmpty {
+            showEmptyTimeline = true
+            emptyTimelineDismissTask?.cancel()
+            emptyTimelineDismissTask = Task {
+                try? await Task.sleep(for: .seconds(3))
+                if !Task.isCancelled { showEmptyTimeline = false }
+            }
+            return
         }
+        timelineVM.applyDay(gridEngine: gridEngine, persistence: ps)
         showTimeline = true
     }
 

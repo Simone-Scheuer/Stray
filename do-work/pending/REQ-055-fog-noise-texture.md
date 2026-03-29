@@ -1,0 +1,68 @@
+---
+id: REQ-055
+title: Perlin noise texture on fog
+route: C
+status: pending
+priority: medium
+user_request: UR-018
+related: [REQ-054, REQ-056]
+batch: fog-overhaul
+---
+
+# Fog Noise Texture
+
+## Goal
+Add subtle cloudy texture to the fog so it looks atmospheric rather than flat. Generated once at launch, composited into the offscreen fog context before holes are punched.
+
+## Requirements
+
+### Noise generation
+- Generate a 256x256 tileable noise texture as `private static let noiseTexture: CGImage?`
+- **Dark pixels**: use fog color RGB with varying alpha (0% to ~12%) — NOT white pixels
+- Value noise with 2-pass wrapping box blur for smooth cloud-like appearance
+- Wrapping blur ensures seamless tiling at edges
+- Thread-safe via Swift's `static let` dispatch_once semantics
+
+### Compositing
+- Draw noise into offscreen context AFTER fog fill, BEFORE punching holes
+- Use `.normal` blend mode (noise is fog-colored with low alpha, adding subtle variation)
+- Tile across the offscreen context drawRect (bounded to ~2-4 iterations per tile, not across entire map coordinate space)
+- Scale noise tile size relative to zoomScale so visual density stays consistent
+
+### Constants
+- Add `fogNoiseSize: Int = 256` to Constants
+- Add `fogNoiseIntensity: Double = 0.12` to Constants
+
+## Files to Modify
+- `Stray/Services/FogOverlay.swift` — add noise generation + compositing into offscreen pass
+- `Stray/Utilities/Constants.swift` — add noise constants
+
+## Dependencies
+- Depends on REQ-054 (offscreen fog context infrastructure)
+
+## Constraints
+- No external dependencies — pure Core Graphics noise generation
+- Noise must be dark/fog-colored, not white (previous white approach looked wrong)
+- Must not degrade performance — generation is one-time, compositing is on small offscreen context
+
+## Builder Guidance
+- Certainty level: Firm
+- A previous attempt used white pixels with `.screen` blend mode and it lightened the fog instead of adding texture — use dark fog-colored pixels instead
+- Previous attempt also tiled across the entire map coordinate space causing performance issues — tile only on the small offscreen context
+
+## Verification
+
+**Source**: UR-018/input.md
+**Pre-fix coverage**: 100% (5/5 items)
+
+### Coverage Map
+
+| # | Item | REQ Section | Status |
+|---|------|-------------|--------|
+| 1 | 256x256 tileable noise texture | Noise generation | Full |
+| 2 | Dark pixels (fog RGB, varying alpha 0-12%) | Noise generation | Full |
+| 3 | Value noise with 2-pass wrapping blur | Noise generation | Full |
+| 4 | Composite after fog fill, before holes | Compositing | Full |
+| 5 | Noise constants | Constants | Full |
+
+*Verified by verify-request action*

@@ -14,26 +14,44 @@ struct StrayApp: App {
     private let photoService: PhotoService
     private let healthService: HealthService
 
-    /// Tracks whether a dedup-on-foreground pass has already run this activation cycle
     @State private var showOnboarding: Bool
+    @State private var containerError: Bool = false
 
     init() {
         let config = ModelConfiguration(cloudKitDatabase: .automatic)
         let container: ModelContainer
+        var didFallback = false
         do {
             container = try ModelContainer(
                 for: RevealedCell.self, StraySession.self, DailySummary.self, SpecialTile.self, CellVisit.self,
                 configurations: config
             )
         } catch {
-            fatalError("Failed to create ModelContainer: \(error)")
+            // Fall back to in-memory store so the app can still launch
+            let fallbackConfig = ModelConfiguration(isStoredInMemoryOnly: true)
+            do {
+                container = try ModelContainer(
+                    for: RevealedCell.self, StraySession.self, DailySummary.self, SpecialTile.self, CellVisit.self,
+                    configurations: fallbackConfig
+                )
+                didFallback = true
+            } catch {
+                fatalError("Failed to create even in-memory ModelContainer: \(error)")
+            }
         }
         self.modelContainer = container
+        self._containerError = State(initialValue: didFallback)
 
         let context = ModelContext(container)
         let persistence = PersistenceService(context: context)
         let grid = GridEngine()
         let location = LocationService()
+
+        #if DEBUG
+        if CommandLine.arguments.contains("--seed-demo") {
+            SeedDataService.loadDemoProfile(into: context)
+        }
+        #endif
 
         persistence.deduplicateCells()
         persistence.deduplicateCellVisits()
@@ -158,6 +176,29 @@ struct StrayApp: App {
                 .onChange(of: locationService.authorizationStatus) { _, newStatus in
                     if newStatus == .authorizedWhenInUse || newStatus == .authorizedAlways {
                         locationService.startTracking()
+                    } else if newStatus == .denied || newStatus == .restricted {
+                        if straySessionViewModel.isSessionActive {
+                            straySessionViewModel.endSession()
+                        }
+                    }
+                }
+                .overlay(alignment: .top) {
+                    if containerError {
+                        Text("Data storage unavailable — exploration won't be saved")
+                            .font(.caption)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(.red.opacity(0.8), in: Capsule())
+                            .padding(.top, 60)
+                    }
+                }
+                .onChange(of: photoService.authorizationStatus) { oldStatus, newStatus in
+                    let wasUnauthorized = (oldStatus == .denied || oldStatus == .notDetermined || oldStatus == .restricted)
+                    let isNowAuthorized = (newStatus == .authorized || newStatus == .limited)
+                    if wasUnauthorized && isNowAuthorized {
+                        photoService.scanLibrary()
+                        bootRevealFromPhotos()
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in

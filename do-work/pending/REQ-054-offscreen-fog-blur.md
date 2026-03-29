@@ -1,0 +1,85 @@
+---
+id: REQ-054
+title: Offscreen fog rendering with vImage post-process blur
+route: C
+status: pending
+priority: high
+user_request: UR-018
+related: [REQ-055, REQ-056]
+batch: fog-overhaul
+---
+
+# Offscreen Fog Rendering with vImage Blur
+
+## Goal
+Restructure FogOverlayRenderer.draw() into two-pass rendering with post-process gaussian blur on the fog mask. This creates soft, atmospheric edges on revealed cells instead of hard rectangles — handling all border topologies naturally (isolated fog cells become soft blobs, peninsulas soften, inlets round).
+
+## Requirements
+
+### Pass 1 — Offscreen fog mask
+- Create offscreen CGContext matching tile pixel dimensions
+- Fill with fog color (respecting existing zoom-based fogAlpha calculation)
+- Punch holes for revealed cells with `.clear` blend mode (same as current)
+- Draw clearing animation residuals on offscreen context
+- Extract CGImage from offscreen context
+- Apply vImage gaussian blur (3x box convolve via `vImageBoxConvolve_ARGB8888`)
+- Draw blurred CGImage into the real map context
+
+### Pass 2 — Crisp tints on map context
+- Draw cell tints (heat/photo/special/default) directly to map context — NOT offscreen
+- Draw inspection highlights directly to map context
+- Draw photo count numbers directly to map context
+- These stay crisp and unblurred
+
+### Infrastructure
+- Add `import Accelerate` to FogOverlay.swift
+- Add `applyBlur(to:radius:)` private helper: CGImage in, blurred CGImage out
+- Offscreen context needs `translateBy(x: -drawRect.origin.x, y: -drawRect.origin.y)` so cellScreenRect coordinates map correctly
+- Extract helpers from monolithic draw(): `drawCellTints()`, `drawInspectionHighlight()`, `drawPhotoCounts()`
+- Add fallback `renderFogDirect()` that does current behavior if offscreen context creation fails
+
+### Blur cache
+- Store `cachedFogImage`, `cachedGeneration`, `cachedMapRect` as instance properties
+- Skip re-blur when renderGeneration and mapRect match cache AND no clearing animation running
+- Invalidate cache on any renderGeneration change
+
+### Constants
+- Add `fogBlurRadiusFraction: Float = 0.35` to Constants enum
+- Blur radius computed as fraction of cell pixel width at runtime
+
+## Files to Modify
+- `Stray/Services/FogOverlay.swift` — major restructure
+- `Stray/Utilities/Constants.swift` — add fogBlurRadiusFraction
+
+## Constraints
+- Preserve ALL existing rendering modes (default, heat, photo, special tiles)
+- Preserve all existing visual behavior except hard edges → soft edges
+- No new dependencies (Accelerate is a system framework)
+- Must handle offscreen context allocation failure gracefully
+
+## Builder Guidance
+- Certainty level: Firm — approach discussed and agreed with user
+- See plan at `.claude/plans/reflective-crafting-goblet.md` for full architectural context
+- vImage buffer management: use `defer { free(buffer.data) }` consistently
+- The offscreen context coordinate transform is critical — test with a single cell first
+
+## Verification
+
+**Source**: UR-018/input.md
+**Pre-fix coverage**: 100% (9/9 items)
+
+### Coverage Map
+
+| # | Item | REQ Section | Status |
+|---|------|-------------|--------|
+| 1 | Two-pass rendering (offscreen + direct) | Pass 1, Pass 2 | Full |
+| 2 | vImage gaussian blur (3x box convolve) | Pass 1 | Full |
+| 3 | import Accelerate | Infrastructure | Full |
+| 4 | applyBlur helper method | Infrastructure | Full |
+| 5 | translateBy coordinate mapping | Infrastructure | Full |
+| 6 | Extract helper methods | Infrastructure | Full |
+| 7 | Blur cache with renderGeneration key | Blur cache | Full |
+| 8 | Fallback for context creation failure | Infrastructure | Full |
+| 9 | fogBlurRadiusFraction constant | Constants | Full |
+
+*Verified by verify-request action*

@@ -181,13 +181,14 @@ final class FogOverlayRenderer: MKOverlayRenderer {
     }
 
     private func heatColor(for visitCount: Int) -> UIColor? {
+        guard !heatColors.isEmpty else { return nil }
         switch visitCount {
         case 0: return nil
         case 1: return heatColors[0]
-        case 2: return heatColors[1]
-        case 3...5: return heatColors[2]
-        case 6...20: return heatColors[3]
-        default: return heatColors[4]
+        case 2: return heatColors.count > 1 ? heatColors[1] : heatColors[0]
+        case 3...5: return heatColors.count > 2 ? heatColors[2] : heatColors.last
+        case 6...20: return heatColors.count > 3 ? heatColors[3] : heatColors.last
+        default: return heatColors.count > 4 ? heatColors[4] : heatColors.last
         }
     }
 }

@@ -2,10 +2,13 @@ import SwiftUI
 import Photos
 
 struct SettingsView: View {
+    @Environment(\.modelContext) private var modelContext
     @Environment(\.locationService) var locationService
+    @Environment(\.gridEngine) var gridEngine
     @Environment(\.photoService) var photoService
     @Environment(\.healthService) var healthService
     @Environment(\.dismiss) private var dismiss
+    @State private var showDemoConfirm = false
     @AppStorage(Constants.showMapLabelsKey) private var showMapLabels = false
     @AppStorage(Constants.mutedMapStyleKey) private var mutedMapStyle = true
     @AppStorage(Constants.showTrafficKey) private var showTraffic = false
@@ -23,6 +26,9 @@ struct SettingsView: View {
                 if healthService.isAvailable {
                     healthSection
                 }
+                #if DEBUG
+                debugSection
+                #endif
                 aboutSection
             }
             .navigationTitle("Settings")
@@ -185,6 +191,37 @@ struct SettingsView: View {
             Text("Stray reads steps and distance from Apple Health to show accurate session stats.")
         }
     }
+
+    // MARK: - Debug
+
+    #if DEBUG
+    private var debugSection: some View {
+        Section {
+            Button("Load Demo Profile (Portland)") {
+                showDemoConfirm = true
+            }
+            .confirmationDialog(
+                "Load Demo Profile?",
+                isPresented: $showDemoConfirm,
+                titleVisibility: .visible
+            ) {
+                Button("Load Demo Data", role: .destructive) {
+                    SeedDataService.loadDemoProfile(into: modelContext)
+                    gridEngine.loadCells(from: modelContext)
+                    gridEngine.loadSpecialTiles(from: modelContext)
+                    gridEngine.forceRender()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This replaces all exploration data with a fake Portland profile. Your real data will be erased.")
+            }
+        } header: {
+            Text("Debug")
+        } footer: {
+            Text("Load fake exploration data to preview all features.")
+        }
+    }
+    #endif
 
     // MARK: - About
 

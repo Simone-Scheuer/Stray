@@ -2,6 +2,7 @@ import Foundation
 import CoreLocation
 import MapKit
 import SwiftData
+import os
 
 enum RevealResult: Equatable {
     case newCell(GridCell)
@@ -11,6 +12,9 @@ enum RevealResult: Equatable {
 
 @Observable
 final class GridEngine {
+    private static let logger = Logger(subsystem: "com.stray.app", category: "grid")
+
+    var lastLoadError: String?
     private(set) var revealedCells: [GridCell: Int] = [:]
     private(set) var lastVisitTimes: [GridCell: Date] = [:]
     private(set) var specialTiles: [GridCell: SpecialTile] = [:]
@@ -178,7 +182,8 @@ final class GridEngine {
         do {
             cells = try context.fetch(descriptor)
         } catch {
-            print("[GridEngine] Failed to load cells: \(error)")
+            Self.logger.error("Failed to load cells: \(error.localizedDescription, privacy: .public)")
+            lastLoadError = "Failed to load cells: \(error.localizedDescription)"
             return
         }
         revealedCells.removeAll(keepingCapacity: true)
@@ -277,7 +282,8 @@ final class GridEngine {
         do {
             tiles = try context.fetch(descriptor)
         } catch {
-            print("[GridEngine] Failed to load special tiles: \(error)")
+            Self.logger.error("Failed to load special tiles: \(error.localizedDescription, privacy: .public)")
+            lastLoadError = "Failed to load special tiles: \(error.localizedDescription)"
             return
         }
         specialTiles.removeAll(keepingCapacity: true)

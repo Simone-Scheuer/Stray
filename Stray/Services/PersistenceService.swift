@@ -26,6 +26,8 @@ final class PersistenceService {
     private var pendingDistance: Double = 0.0
     private var pendingSteps: Int = 0
 
+    private var lastSaveFailureTime: Date?
+
     init(context: ModelContext) {
         self.context = context
     }
@@ -471,7 +473,7 @@ final class PersistenceService {
             guard let keeper = sorted.first else { continue }
 
             for duplicate in sorted.dropFirst() {
-                keeper.cellsRevealed = max(keeper.cellsRevealed, keeper.cellsRevealed)
+                keeper.cellsRevealed = max(keeper.cellsRevealed, duplicate.cellsRevealed)
                 keeper.distanceMeters = max(keeper.distanceMeters, duplicate.distanceMeters)
                 keeper.stepCount = max(keeper.stepCount, duplicate.stepCount)
                 keeper.isActiveDay = keeper.isActiveDay || duplicate.isActiveDay
@@ -497,12 +499,18 @@ final class PersistenceService {
     }
 
     func save() {
+        if let failureTime = lastSaveFailureTime,
+           Date().timeIntervalSince(failureTime) < 10.0 {
+            return
+        }
         do {
             try context.save()
             lastPersistenceError = nil
+            lastSaveFailureTime = nil
         } catch {
             Self.logger.error("SwiftData save failed: \(error.localizedDescription, privacy: .public)")
             lastPersistenceError = error
+            lastSaveFailureTime = Date()
         }
     }
 
@@ -522,13 +530,16 @@ final class PersistenceService {
         }
     }
 
-    private func todayString(for date: Date = Date()) -> String {
+    private static let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.timeZone = .current
-        // Fixed locale prevents user locale from altering the date format (e.g. calendar systems)
         formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.string(from: date)
+        return formatter
+    }()
+
+    private func todayString(for date: Date = Date()) -> String {
+        Self.dateFormatter.string(from: date)
     }
 
     /// ~500m buckets for caching city lookups. Adjacent cells in the same area share a geocode result.
