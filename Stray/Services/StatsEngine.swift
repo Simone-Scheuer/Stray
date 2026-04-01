@@ -55,11 +55,6 @@ struct StatsEngine {
         return summaries.reduce(0) { $0 + $1.stepCount }
     }
 
-    func straySessionCount() -> Int {
-        let descriptor = FetchDescriptor<StraySession>()
-        return (try? context.fetchCount(descriptor)) ?? 0
-    }
-
     func todayStats() -> (cells: Int, distance: Double, steps: Int) {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
@@ -77,13 +72,6 @@ struct StatsEngine {
 
     func totalAreaSquareMeters() -> Double {
         Double(totalCellsRevealed()) * (Constants.gridCellSizeMeters * Constants.gridCellSizeMeters)
-    }
-
-    func fetchSessions() -> [StraySession] {
-        let descriptor = FetchDescriptor<StraySession>(
-            sortBy: [SortDescriptor(\.startedAt, order: .reverse)]
-        )
-        return (try? context.fetch(descriptor)) ?? []
     }
 
     func cityBreakdown() -> [(city: String, count: Int)] {

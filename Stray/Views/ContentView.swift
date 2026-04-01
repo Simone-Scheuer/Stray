@@ -1,22 +1,11 @@
 import SwiftUI
 import UIKit
 
-private struct SessionSnapshot {
-    let duration: TimeInterval
-    let cells: Int
-    let distance: Double
-    let steps: Int
-    let healthDistance: Double?
-    let healthSteps: Int?
-}
-
 struct ContentView: View {
     @Environment(\.gridEngine) var gridEngine
     @Environment(\.locationService) var locationService
     @Environment(\.persistenceService) var persistenceService
-    @Environment(\.straySessionViewModel) var sessionViewModel
     @Environment(\.photoService) var photoService
-    @Environment(\.healthService) var healthService
     @AppStorage(Constants.showMapLabelsKey) private var showMapLabels = false
     @AppStorage(Constants.mutedMapStyleKey) private var mutedMapStyle = true
     @AppStorage(Constants.showTrafficKey) private var showTraffic = false
@@ -26,7 +15,6 @@ struct ContentView: View {
 
     @State private var showStats = false
     @State private var showSettings = false
-    @State private var showEndSessionAlert = false
     @State private var inspectedCell: GridCell?
     @State private var showPersistenceError = false
     @State private var errorDismissTask: Task<Void, Never>?
@@ -36,27 +24,63 @@ struct ContentView: View {
 
     @State private var isFollowingUser = true
 
-    @State private var showSessionSummary = false
-    @State private var lastSession: SessionSnapshot?
-    @State private var summaryDismissTask: Task<Void, Never>?
-
-    @State private var showPsychocachePrompt = false
-    @State private var psychocacheDismissTask: Task<Void, Never>?
     @State private var showEmptyTimeline = false
     @State private var emptyTimelineDismissTask: Task<Void, Never>?
-    @State private var showCamera = false
-    @State private var newCellBurst = 0
-    @State private var lastNewCellTime: Date?
 
     @State private var showPhotoMode = false
     @State private var showHeatMode = false
     @State private var showSplash = true
 
-    @State private var healthSteps: Int?
-    @State private var healthDistance: Double?
-    @State private var healthRefreshTask: Task<Void, Never>?
-
     var body: some View {
+        mainContent
+            .overlay(alignment: .bottom) { recenterButton }
+            .animation(.easeInOut(duration: 0.25), value: isFollowingUser)
+            .overlay(alignment: .bottom) { emptyTimelineOverlay }
+            .animation(.easeInOut(duration: 0.3), value: showEmptyTimeline)
+            .sheet(isPresented: $showStats) {
+                StatsView(onOpenTimeline: {
+                    showStats = false
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(350))
+                        enterTimeline()
+                    }
+                })
+            }
+            .sheet(isPresented: $showSettings) {
+                SettingsView()
+            }
+            .sheet(item: $inspectedCell, onDismiss: {
+                gridEngine.setInspectedCell(nil)
+            }) { cell in
+                CellInspectorView(cell: cell)
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+            }
+            .overlay(alignment: .bottom) { persistenceErrorOverlay }
+            .animation(.easeInOut(duration: 0.3), value: showPersistenceError)
+            .overlay(alignment: .center) { locationDeniedOverlay }
+            .onChange(of: persistenceService?.lastPersistenceError != nil) { _, hasError in
+                handlePersistenceError(hasError)
+            }
+            .onAppear {
+                #if DEBUG && targetEnvironment(simulator)
+                gridEngine.addTestCells()
+                #endif
+                refreshPhotoDots()
+            }
+            .onChange(of: showPhotoDots) { _, _ in refreshPhotoDots() }
+            .onChange(of: photoService.scanComplete) { _, _ in refreshPhotoDots() }
+            .overlay { splashOverlay }
+            .animation(.easeOut(duration: 0.8), value: showSplash)
+            .task {
+                try? await Task.sleep(for: .seconds(2.5))
+                showSplash = false
+            }
+    }
+
+    // MARK: - Body Subviews
+
+    private var mainContent: some View {
         ZStack {
             MapViewRepresentable(
                 gridEngine: gridEngine,
@@ -65,7 +89,6 @@ struct ContentView: View {
                 showTraffic: showTraffic,
                 allowRotation: allowRotation,
                 mapStyle: mapStyle,
-                sessionPathPolyline: sessionViewModel?.pathPolyline,
                 isFollowingUser: $isFollowingUser,
                 onCellTapped: { cell in
                     guard !showTimeline else { return }
@@ -78,109 +101,9 @@ struct ContentView: View {
 
             VStack {
                 if !showTimeline {
-                    // Top-right action buttons
-                    HStack {
-                        Spacer()
-                        HStack(spacing: 12) {
-                            if let vm = sessionViewModel {
-                                if vm.isSessionActive {
-                                    if vm.isSessionPaused {
-                                        iconButton(systemName: "play.fill", tint: .green.opacity(0.7), label: "Resume session") {
-                                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                                            vm.resumeSession()
-                                        }
-                                    } else {
-                                        iconButton(systemName: "pause.fill", tint: .orange.opacity(0.7), label: "Pause session") {
-                                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                            vm.pauseSession()
-                                        }
-                                    }
-                                    iconButton(systemName: "figure.walk.arrival", tint: .red.opacity(0.7), label: "End exploring session") {
-                                        showEndSessionAlert = true
-                                    }
-                                } else {
-                                    iconButton(systemName: "figure.walk.departure", label: "Start exploring") {
-                                        UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
-                                        summaryDismissTask?.cancel()
-                                        showSessionSummary = false
-                                        vm.startSession()
-                                        startHealthRefresh()
-                                    }
-                                }
-                            }
-                            iconButton(systemName: "clock.arrow.circlepath", label: "View timeline") {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                enterTimeline()
-                            }
-                            iconButton(
-                                systemName: showHeatMode ? "flame.fill" : "flame",
-                                tint: showHeatMode ? .orange.opacity(0.7) : nil,
-                                label: showHeatMode ? "Exit heat map" : "View heat map"
-                            ) {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                if showHeatMode {
-                                    exitHeatMode()
-                                } else {
-                                    enterHeatMode()
-                                }
-                            }
-                            if photoService.isAuthorized {
-                                iconButton(
-                                    systemName: showPhotoMode ? "photo.fill" : "photo",
-                                    tint: showPhotoMode ? .purple.opacity(0.7) : nil,
-                                    label: showPhotoMode ? "Exit photo mode" : "View photo density"
-                                ) {
-                                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                    if showPhotoMode {
-                                        exitPhotoMode()
-                                    } else {
-                                        enterPhotoMode()
-                                    }
-                                }
-                            }
-                            iconButton(systemName: "chart.bar", label: "View statistics") {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                showStats = true
-                            }
-                            iconButton(systemName: "gearshape", label: "Settings") {
-                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                                showSettings = true
-                            }
-                        }
-                        .padding(.trailing, 16)
-                        .padding(.top, 12)
-                    }
-
-                    if showHeatMode {
-                        HStack {
-                            Image(systemName: "flame.fill")
-                            Text("Heat Map")
-                        }
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(.orange.opacity(0.7), in: Capsule())
-                    }
-
-                    if showPhotoMode {
-                        HStack {
-                            Image(systemName: "photo.fill")
-                            Text("Photos")
-                        }
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(.purple.opacity(0.7), in: Capsule())
-                    }
-
-                    if let vm = sessionViewModel, vm.isSessionActive {
-                        sessionHUD(vm: vm)
-                        Spacer()
-                    } else {
-                        Spacer()
-                    }
+                    actionButtonBar
+                    modeBadges
+                    Spacer()
                 } else {
                     Spacer()
                 }
@@ -198,207 +121,170 @@ struct ContentView: View {
                 }
             }
         }
-        .overlay(alignment: .bottomTrailing) {
-            if !isFollowingUser && !showTimeline {
-                Button {
-                    isFollowingUser = true
-                } label: {
-                    Image(systemName: "location.fill")
-                        .font(.system(size: 16, weight: .medium))
-                        .foregroundStyle(.white)
-                        .frame(width: 36, height: 36)
-                        .background(.black.opacity(0.6), in: Circle())
-                }
-                .accessibilityLabel("Recenter map on your location")
-                .padding(.trailing, 16)
-                .padding(.bottom, 40)
-                .transition(.opacity)
-            }
-        }
-        .animation(.easeInOut(duration: 0.25), value: isFollowingUser)
-        .overlay(alignment: .bottom) {
-            if showSessionSummary, let snap = lastSession {
-                sessionSummaryCard(snap: snap)
-                    .padding(.bottom, 40)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .onTapGesture {
-                        summaryDismissTask?.cancel()
-                        showSessionSummary = false
-                    }
-            }
-        }
-        .animation(.easeInOut(duration: 0.4), value: showSessionSummary)
-        .overlay(alignment: .bottom) {
-            if showPsychocachePrompt {
-                psychocachePrompt
-                    .padding(.bottom, 100)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
-        .animation(.easeInOut(duration: 0.4), value: showPsychocachePrompt)
-        .overlay(alignment: .bottom) {
-            if showEmptyTimeline {
-                Text("Start exploring to build your timeline")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.9))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(.black.opacity(0.7), in: Capsule())
-                    .padding(.bottom, 40)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
-        .animation(.easeInOut(duration: 0.3), value: showEmptyTimeline)
-        .onChange(of: sessionViewModel?.cellsRevealedInSession) { old, new in
-            guard let new, new > (old ?? 0),
-                  let vm = sessionViewModel, vm.isSessionActive, !vm.isSessionPaused else { return }
-            let now = Date()
-            if let last = lastNewCellTime, now.timeIntervalSince(last) < 10 {
-                newCellBurst += 1
-            } else {
-                newCellBurst = 1
-            }
-            lastNewCellTime = now
-            if newCellBurst >= 3 && !showPsychocachePrompt {
-                newCellBurst = 0
-                showPsychocachePrompt = true
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
-                psychocacheDismissTask?.cancel()
-                psychocacheDismissTask = Task {
-                    try? await Task.sleep(for: .seconds(5))
-                    if !Task.isCancelled {
-                        showPsychocachePrompt = false
-                    }
-                }
-            }
-        }
-        .fullScreenCover(isPresented: $showCamera) {
-            CameraView()
-                .ignoresSafeArea()
-        }
-        .sheet(isPresented: $showStats) {
-            StatsView(onOpenTimeline: {
-                showStats = false
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(350))
+    }
+
+    private var actionButtonBar: some View {
+        HStack {
+            Spacer()
+            HStack(spacing: 12) {
+                iconButton(systemName: "clock.arrow.circlepath", label: "View timeline") {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     enterTimeline()
                 }
-            })
-        }
-        .sheet(isPresented: $showSettings) {
-            SettingsView()
-        }
-        .sheet(item: $inspectedCell, onDismiss: {
-            gridEngine.setInspectedCell(nil)
-        }) { cell in
-            CellInspectorView(cell: cell)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-        .overlay(alignment: .bottom) {
-            if showPersistenceError && !showTimeline {
-                Text("Unable to save exploration data")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.9))
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 8)
-                    .background(.red.opacity(0.7), in: Capsule())
-                    .padding(.bottom, 40)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
-        .animation(.easeInOut(duration: 0.3), value: showPersistenceError)
-        .overlay(alignment: .center) {
-            if locationService?.authorizationStatus == .denied && gridEngine.revealedCells.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "location.slash")
-                        .font(.system(size: 32))
-                        .foregroundStyle(.white.opacity(0.7))
-                    Text("Location access is needed to reveal the map")
-                        .font(.callout)
-                        .foregroundStyle(.white.opacity(0.9))
-                        .multilineTextAlignment(.center)
-                    Button("Open Settings") {
-                        if let url = URL(string: UIApplication.openSettingsURLString) {
-                            UIApplication.shared.open(url)
-                        }
+                iconButton(
+                    systemName: showHeatMode ? "flame.fill" : "flame",
+                    tint: showHeatMode ? .orange.opacity(0.7) : nil,
+                    label: showHeatMode ? "Exit heat map" : "View heat map"
+                ) {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    if showHeatMode { exitHeatMode() } else { enterHeatMode() }
+                }
+                if photoService.isAuthorized {
+                    iconButton(
+                        systemName: showPhotoMode ? "photo.fill" : "photo",
+                        tint: showPhotoMode ? .purple.opacity(0.7) : nil,
+                        label: showPhotoMode ? "Exit photo mode" : "View photo density"
+                    ) {
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        if showPhotoMode { exitPhotoMode() } else { enterPhotoMode() }
                     }
-                    .font(.callout.weight(.medium))
+                }
+                iconButton(systemName: "chart.bar", label: "View statistics") {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showStats = true
+                }
+                iconButton(systemName: "gearshape", label: "Settings") {
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                    showSettings = true
+                }
+            }
+            .padding(.trailing, 16)
+            .padding(.top, 12)
+        }
+    }
+
+    @ViewBuilder
+    private var modeBadges: some View {
+        if showHeatMode {
+            HStack {
+                Image(systemName: "flame.fill")
+                Text("Heat Map")
+            }
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.orange.opacity(0.7), in: Capsule())
+        }
+        if showPhotoMode {
+            HStack {
+                Image(systemName: "photo.fill")
+                Text("Photos")
+            }
+            .font(.caption.weight(.medium))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(.purple.opacity(0.7), in: Capsule())
+        }
+    }
+
+    @ViewBuilder
+    private var recenterButton: some View {
+        if !isFollowingUser && !showTimeline {
+            Button {
+                isFollowingUser = true
+            } label: {
+                Image(systemName: "location.fill")
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(.white.opacity(0.2), in: Capsule())
-                }
-                .padding(32)
+                    .frame(width: 36, height: 36)
+                    .background(.black.opacity(0.6), in: Circle())
             }
+            .accessibilityLabel("Recenter map on your location")
+            .padding(.bottom, 40)
+            .transition(.opacity)
         }
-        .onChange(of: persistenceService?.lastPersistenceError != nil) { _, hasError in
-            if hasError {
-                showPersistenceError = true
-                errorDismissTask?.cancel()
-                errorDismissTask = Task {
-                    try? await Task.sleep(for: .seconds(5))
-                    if !Task.isCancelled {
-                        showPersistenceError = false
+    }
+
+    @ViewBuilder
+    private var emptyTimelineOverlay: some View {
+        if showEmptyTimeline {
+            Text("Start exploring to build your timeline")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.9))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.black.opacity(0.7), in: Capsule())
+                .padding(.bottom, 40)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    @ViewBuilder
+    private var persistenceErrorOverlay: some View {
+        if showPersistenceError && !showTimeline {
+            Text("Unable to save exploration data")
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.9))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(.red.opacity(0.7), in: Capsule())
+                .padding(.bottom, 40)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+        }
+    }
+
+    @ViewBuilder
+    private var locationDeniedOverlay: some View {
+        if locationService.authorizationStatus == .denied && gridEngine.revealedCells.isEmpty {
+            VStack(spacing: 12) {
+                Image(systemName: "location.slash")
+                    .font(.system(size: 32))
+                    .foregroundStyle(.white.opacity(0.7))
+                Text("Location access is needed to reveal the map")
+                    .font(.callout)
+                    .foregroundStyle(.white.opacity(0.9))
+                    .multilineTextAlignment(.center)
+                Button("Open Settings") {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
                     }
                 }
-            } else {
-                showPersistenceError = false
-                errorDismissTask?.cancel()
+                .font(.callout.weight(.medium))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+                .background(.white.opacity(0.2), in: Capsule())
             }
+            .padding(32)
         }
-        .alert("End Stray?", isPresented: $showEndSessionAlert) {
-            Button("End", role: .destructive) {
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                if let vm = sessionViewModel {
-                    let snapshot = SessionSnapshot(
-                        duration: vm.elapsedSeconds,
-                        cells: vm.cellsRevealedInSession,
-                        distance: vm.distanceInSession,
-                        steps: vm.estimatedStepsInSession,
-                        healthDistance: healthDistance,
-                        healthSteps: healthSteps
-                    )
-                    vm.endSession(healthSteps: healthSteps, healthDistance: healthDistance)
-                    stopHealthRefresh()
-                    lastSession = snapshot
-                    showSessionSummary = true
-                    summaryDismissTask?.cancel()
-                    summaryDismissTask = Task {
-                        try? await Task.sleep(for: .seconds(5))
-                        if !Task.isCancelled {
-                            showSessionSummary = false
-                        }
-                    }
+    }
+
+    @ViewBuilder
+    private var splashOverlay: some View {
+        if showSplash {
+            SplashOverlay()
+                .transition(.opacity)
+                .ignoresSafeArea()
+        }
+    }
+
+    // MARK: - Body Helpers
+
+    private func handlePersistenceError(_ hasError: Bool) {
+        if hasError {
+            showPersistenceError = true
+            errorDismissTask?.cancel()
+            errorDismissTask = Task {
+                try? await Task.sleep(for: .seconds(5))
+                if !Task.isCancelled {
+                    showPersistenceError = false
                 }
             }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("This will end your current Stray session.")
-        }
-        .onAppear {
-            #if DEBUG && targetEnvironment(simulator)
-            gridEngine.addTestCells()
-            #endif
-            refreshPhotoDots()
-        }
-        .onChange(of: showPhotoDots) { _, _ in
-            refreshPhotoDots()
-        }
-        .onChange(of: photoService.scanComplete) { _, _ in
-            refreshPhotoDots()
-        }
-        .overlay {
-            if showSplash {
-                SplashOverlay()
-                    .transition(.opacity)
-                    .ignoresSafeArea()
-            }
-        }
-        .animation(.easeOut(duration: 0.8), value: showSplash)
-        .task {
-            try? await Task.sleep(for: .seconds(2.5))
-            showSplash = false
+        } else {
+            showPersistenceError = false
+            errorDismissTask?.cancel()
         }
     }
 
@@ -487,141 +373,6 @@ struct ContentView: View {
                 .background(tint ?? .black.opacity(0.6), in: Circle())
         }
         .accessibilityLabel(label)
-    }
-
-    // MARK: - Session HUD
-
-    private func sessionHUD(vm: StraySessionViewModel) -> some View {
-        let displayDistance = healthDistance ?? vm.distanceInSession
-        let displaySteps = healthSteps ?? vm.estimatedStepsInSession
-        return TimelineView(.periodic(from: .now, by: 1.0)) { _ in
-            HStack(spacing: 16) {
-                if vm.isSessionPaused {
-                    Text("Paused")
-                        .foregroundStyle(.orange)
-                }
-                Label(formattedTime(vm.elapsedSeconds), systemImage: "clock")
-                Label("\(vm.cellsRevealedInSession)", systemImage: "square.grid.2x2")
-                Label(formattedDistance(displayDistance), systemImage: "figure.walk")
-                Label("\(displaySteps)", systemImage: "shoeprints.fill")
-            }
-            .font(.caption.monospacedDigit())
-            .foregroundStyle(.white)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .background(.black.opacity(0.6), in: Capsule())
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Session\(vm.isSessionPaused ? " paused" : ""): \(formattedTime(vm.elapsedSeconds)) elapsed, \(vm.cellsRevealedInSession) cells revealed, \(formattedDistance(displayDistance)) walked, \(displaySteps) steps")
-        }
-    }
-
-    // MARK: - Session Summary
-
-    private func sessionSummaryCard(snap: SessionSnapshot) -> some View {
-        let displayDistance = snap.healthDistance ?? snap.distance
-        let displaySteps = snap.healthSteps ?? snap.steps
-        return VStack(alignment: .leading, spacing: 12) {
-            Text("Session Complete")
-                .font(.headline)
-                .foregroundStyle(.white)
-            HStack(spacing: 20) {
-                summaryItem(icon: "clock", value: formattedTime(snap.duration))
-                summaryItem(icon: "square.grid.2x2", value: "\(snap.cells)")
-                summaryItem(icon: "figure.walk", value: formattedDistance(displayDistance))
-            }
-            HStack(spacing: 20) {
-                summaryItem(icon: "shoeprints.fill", value: "\(displaySteps)")
-            }
-        }
-        .padding(20)
-        .background(.black.opacity(0.8), in: RoundedRectangle(cornerRadius: 18))
-    }
-
-    private func summaryItem(icon: String, value: String, tint: Color = .white) -> some View {
-        Label(value, systemImage: icon)
-            .font(.callout.monospacedDigit())
-            .foregroundStyle(tint)
-    }
-
-    // MARK: - Psychocache Prompt
-
-    private var psychocachePrompt: some View {
-        HStack(spacing: 14) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("You've arrived.")
-                    .font(.callout.weight(.medium))
-                    .foregroundStyle(.white)
-                Text("What do you notice?")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.7))
-            }
-            if CameraView.isAvailable {
-                Button {
-                    psychocacheDismissTask?.cancel()
-                    showPsychocachePrompt = false
-                    showCamera = true
-                } label: {
-                    Image(systemName: "camera.fill")
-                        .font(.system(size: 18))
-                        .foregroundStyle(.black)
-                        .frame(width: 40, height: 40)
-                        .background(.white, in: Circle())
-                }
-                .accessibilityLabel("Open camera")
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 14)
-        .background(.black.opacity(0.8), in: Capsule())
-        .onTapGesture {
-            psychocacheDismissTask?.cancel()
-            showPsychocachePrompt = false
-        }
-    }
-
-    // MARK: - Formatting
-
-    private func formattedTime(_ seconds: TimeInterval) -> String {
-        let mins = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        return String(format: "%02d:%02d", mins, secs)
-    }
-
-    private func formattedDistance(_ meters: Double) -> String {
-        formatDistance(meters)
-    }
-
-    // MARK: - HealthKit Session Refresh
-
-    private func startHealthRefresh() {
-        guard healthService.isAuthorized else { return }
-        healthSteps = nil
-        healthDistance = nil
-        healthRefreshTask?.cancel()
-        healthRefreshTask = Task {
-            while !Task.isCancelled {
-                guard let start = sessionViewModel?.sessionStartTime else { break }
-                let now = Date()
-                async let s = healthService.steps(from: start, to: now)
-                async let d = healthService.distance(from: start, to: now)
-                let (steps, dist) = await (s, d)
-                if !Task.isCancelled {
-                    let hasGPSData = (sessionViewModel?.distanceInSession ?? 0) > 0
-                    if steps == 0 && dist == 0 && hasGPSData {
-                        // HealthKit returned zeros but GPS has data — keep GPS values
-                    } else {
-                        healthSteps = steps
-                        healthDistance = dist
-                    }
-                }
-                try? await Task.sleep(for: .seconds(10))
-            }
-        }
-    }
-
-    private func stopHealthRefresh() {
-        healthRefreshTask?.cancel()
-        healthRefreshTask = nil
     }
 }
 

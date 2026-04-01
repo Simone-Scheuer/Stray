@@ -13,11 +13,7 @@ final class StatsViewModel {
     private(set) var totalDistance: String = formatDistance(0)
     private(set) var totalSteps: String = "0"
     private(set) var currentStreak: Int = 0
-    private(set) var sessionCount: Int = 0
     private(set) var totalArea: String = "0 km²"
-
-    // Sessions
-    private(set) var sessions: [StraySession] = []
 
     // Cities
     private(set) var cities: [(city: String, count: Int)] = []
@@ -41,20 +37,9 @@ final class StatsViewModel {
         totalDistance = formatDistance(engine.totalDistance())
         totalSteps = formatNumber(engine.totalSteps())
         currentStreak = engine.currentStreak()
-        sessionCount = engine.straySessionCount()
         totalArea = formatArea(engine.totalAreaSquareMeters())
-        sessions = engine.fetchSessions()
 
         cities = engine.cityBreakdown()
-    }
-
-    func formattedDuration(_ seconds: Double) -> String {
-        let total = Int(seconds)
-        let h = total / 3600
-        let m = (total % 3600) / 60
-        let s = total % 60
-        if h > 0 { return String(format: "%d:%02d:%02d", h, m, s) }
-        return String(format: "%02d:%02d", m, s)
     }
 
     private func formatArea(_ squareMeters: Double) -> String {

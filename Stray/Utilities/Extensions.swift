@@ -16,10 +16,6 @@ private struct PersistenceServiceKey: EnvironmentKey {
     static var defaultValue: PersistenceService? { nil }
 }
 
-private struct StraySessionViewModelKey: EnvironmentKey {
-    static var defaultValue: StraySessionViewModel? { nil }
-}
-
 private struct PhotoServiceKey: EnvironmentKey {
     @MainActor static let defaultValue = PhotoService()
 }
@@ -48,11 +44,6 @@ extension EnvironmentValues {
     var persistenceService: PersistenceService? {
         get { self[PersistenceServiceKey.self] }
         set { self[PersistenceServiceKey.self] = newValue }
-    }
-
-    var straySessionViewModel: StraySessionViewModel? {
-        get { self[StraySessionViewModelKey.self] }
-        set { self[StraySessionViewModelKey.self] = newValue }
     }
 
     var photoService: PhotoService {

@@ -20,7 +20,6 @@ struct StatsView: View {
                     timelineSection
                     todaySection
                     lifetimeSection
-                    sessionsSection
                     citiesSection
                 }
                 .padding(.horizontal, 24)
@@ -103,59 +102,6 @@ struct StatsView: View {
                 if photoService.isAuthorized {
                     lifetimeCard(value: formattedCount(photoService.totalGeotaggedPhotos), label: "geotagged photos")
                 }
-            }
-        }
-    }
-
-    // MARK: - Sessions
-
-    private var sessionsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Stray Sessions")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-
-            if statsViewModel.sessions.isEmpty {
-                Text("Start a Stray session to see your exploration stats here.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .padding(16)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(statsViewModel.sessions.enumerated()), id: \.offset) { index, session in
-                        let displayDistance = session.healthDistanceMeters ?? session.distanceMeters
-                        HStack {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(session.startedAt.formatted(date: .abbreviated, time: .shortened))
-                                    .font(.body)
-                                Text(statsViewModel.formattedDuration(session.durationSeconds))
-                                    .font(.caption.monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            VStack(alignment: .trailing, spacing: 2) {
-                                Text(formatDistance(displayDistance))
-                                    .font(.body.monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                                Text("\(session.cellsRevealedCount) cells")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .accessibilityElement(children: .combine)
-                        .accessibilityLabel("\(session.startedAt.formatted(date: .abbreviated, time: .shortened)), \(statsViewModel.formattedDuration(session.durationSeconds)), \(formatDistance(displayDistance)), \(session.cellsRevealedCount) cells")
-
-                        if index < statsViewModel.sessions.count - 1 {
-                            Divider()
-                                .padding(.leading, 16)
-                        }
-                    }
-                }
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
             }
         }
     }

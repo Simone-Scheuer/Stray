@@ -5,7 +5,7 @@ enum Constants {
     static let gridCellSizeMeters: Double = 50.0
     static let searchRadiusMeters: Double = 500.0
 
-    static let fogColor = UIColor(white: 0.06, alpha: 0.93)
+    static let fogColor = UIColor(white: 0.06, alpha: 0.85)
 
     static let bootRevealRadius: Int = 1
     static let tileReloadThrottleSeconds: Double = 1.0
@@ -33,8 +33,6 @@ enum Constants {
     static let revealedCellTint = UIColor(hue: 210.0/360.0, saturation: 0.70, brightness: 0.85, alpha: 0.35)
 
     static let specialTileAlpha: CGFloat = 0.55
-    static let fogBlurRadiusFraction: Float = 0.35
-
     static let passiveAccuracyThreshold: CLLocationAccuracy = 100.0
     static let activeAccuracyThreshold: CLLocationAccuracy = 50.0
     static let lowPowerAccuracyThreshold: CLLocationAccuracy = 150.0

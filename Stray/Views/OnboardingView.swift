@@ -9,6 +9,7 @@ struct OnboardingView: View {
 
     @State private var currentPage = 0
     @State private var photoScanSummary: String?
+    @State private var isScanning = false
 
     var body: some View {
         TabView(selection: $currentPage) {
@@ -209,7 +210,16 @@ struct OnboardingView: View {
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
 
-                if let summary = photoScanSummary {
+                if isScanning {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .tint(.orange)
+                        Text("Scanning photo library...")
+                            .font(.callout)
+                            .foregroundStyle(.orange.opacity(0.8))
+                    }
+                    .transition(.opacity)
+                } else if let summary = photoScanSummary {
                     Text(summary)
                         .font(.callout.weight(.medium))
                         .foregroundStyle(.orange)
@@ -226,8 +236,8 @@ struct OnboardingView: View {
                     Task.detached(priority: .userInitiated) {
                         let status = await photoService.requestAuthorization()
                         if status == .authorized || status == .limited {
+                            await MainActor.run { isScanning = true }
                             await photoService.scanLibrary()
-                            // Wait for scan to complete (timeout after 30s)
                             var waited: TimeInterval = 0
                             while await !photoService.scanComplete {
                                 try? await Task.sleep(for: .milliseconds(100))
@@ -237,6 +247,7 @@ struct OnboardingView: View {
                             let cells = await photoService.cellsWithPhotos.count
                             let photos = await photoService.totalGeotaggedPhotos
                             await MainActor.run {
+                                isScanning = false
                                 if cells > 0 {
                                     photoScanSummary = "Found \(photos) photos across \(cells) locations — your map is already coming alive."
                                 } else {
@@ -255,8 +266,9 @@ struct OnboardingView: View {
                         .foregroundStyle(.black)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(.white, in: RoundedRectangle(cornerRadius: 14))
+                        .background(.white.opacity(isScanning ? 0.5 : 1.0), in: RoundedRectangle(cornerRadius: 14))
                 }
+                .disabled(isScanning)
 
                 Button {
                     completeOnboarding()

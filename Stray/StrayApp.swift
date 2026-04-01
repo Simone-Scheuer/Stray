@@ -9,7 +9,6 @@ struct StrayApp: App {
     private let gridEngine: GridEngine
     private let locationService: LocationService
     private let persistenceService: PersistenceService
-    private let straySessionViewModel: StraySessionViewModel
     private let statsViewModel: StatsViewModel
     private let photoService: PhotoService
     private let healthService: HealthService
@@ -61,12 +60,7 @@ struct StrayApp: App {
         persistence.backfillMissingCities()
         grid.loadCells(from: context)
         grid.loadSpecialTiles(from: context)
-
-        let sessionVM = StraySessionViewModel(
-            gridEngine: grid,
-            locationService: location,
-            persistenceService: persistence
-        )
+        grid.loadTodayCells(from: context)
 
         // Boot reveal: first valid location fix clears a 3x3 area around the user
         var hasBootRevealed = !grid.revealedCells.isEmpty
@@ -105,6 +99,7 @@ struct StrayApp: App {
 
             // Log visit for daily journey replay (always, regardless of cooldown)
             persistence.logCellVisit(cellKey: cell.key)
+            grid.markCellVisitedToday(cell)
 
             let isNew: Bool
             if case .newCell = result { isNew = true } else { isNew = false }
@@ -126,12 +121,6 @@ struct StrayApp: App {
             }
 
             persistence.save()
-
-            // Feed session pipeline
-            sessionVM.onSessionLocationUpdate(coordinate: coordinate, distance: distance)
-            if isNew {
-                sessionVM.onCellRevealed()
-            }
         }
 
         let photo = PhotoService()
@@ -140,7 +129,6 @@ struct StrayApp: App {
         self.gridEngine = grid
         self.locationService = location
         self.persistenceService = persistence
-        self.straySessionViewModel = sessionVM
         self.statsViewModel = StatsViewModel()
         self.photoService = photo
         self.healthService = health
@@ -155,7 +143,6 @@ struct StrayApp: App {
                 .environment(\.gridEngine, gridEngine)
                 .environment(\.locationService, locationService)
                 .environment(\.persistenceService, persistenceService)
-                .environment(\.straySessionViewModel, straySessionViewModel)
                 .environment(\.statsViewModel, statsViewModel)
                 .environment(\.photoService, photoService)
                 .environment(\.healthService, healthService)
@@ -176,10 +163,6 @@ struct StrayApp: App {
                 .onChange(of: locationService.authorizationStatus) { _, newStatus in
                     if newStatus == .authorizedWhenInUse || newStatus == .authorizedAlways {
                         locationService.startTracking()
-                    } else if newStatus == .denied || newStatus == .restricted {
-                        if straySessionViewModel.isSessionActive {
-                            straySessionViewModel.endSession()
-                        }
                     }
                 }
                 .overlay(alignment: .top) {
@@ -268,5 +251,6 @@ struct StrayApp: App {
         dedupService.fixupDailySummaryActiveFlags()
         gridEngine.loadCells(from: context)
         gridEngine.loadSpecialTiles(from: context)
+        gridEngine.loadTodayCells(from: context)
     }
 }

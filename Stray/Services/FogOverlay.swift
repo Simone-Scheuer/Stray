@@ -1,6 +1,5 @@
 import MapKit
 import UIKit
-import Accelerate
 
 // MARK: - Overlay Data Object
 
@@ -17,10 +16,6 @@ final class FogOverlayRenderer: MKOverlayRenderer {
     let gridEngine: GridEngine
     private let heatColors = HeatGradient.colors()
 
-    private var cachedFogImage: CGImage?
-    private var cachedGeneration: Int = -1
-    private var cachedMapRect: MKMapRect = .null
-
     init(overlay: MKOverlay, gridEngine: GridEngine) {
         self.gridEngine = gridEngine
         super.init(overlay: overlay)
@@ -30,17 +25,26 @@ final class FogOverlayRenderer: MKOverlayRenderer {
         let drawRect = rect(for: mapRect)
         let region = MKCoordinateRegion(mapRect)
 
+        context.setShouldAntialias(false)
+        context.setAllowsAntialiasing(false)
+
         let baseFogAlpha = Double(Constants.fogColor.cgColor.alpha)
-        let logScale = log10(max(Double(zoomScale), 1e-6))
-        let fogMultiplier = min(1.0, max(0.3, (logScale + 4.5) / 3.0))
-        let fogAlpha = baseFogAlpha * fogMultiplier
+        let latDelta = region.span.latitudeDelta
+        let zoomFactor = min(latDelta / 6.0, 1.0)
+        let fogAlpha = baseFogAlpha * (1.0 - zoomFactor * 0.25)
 
-        if region.span.latitudeDelta > 1.0 {
-            context.setFillColor(Constants.fogColor.withAlphaComponent(fogAlpha).cgColor)
-            context.fill(drawRect)
-            return
+        let level = GridEngine.LODLevel.level(for: latDelta)
+
+        if level == .base {
+            drawBaseLevel(region: region, fogAlpha: fogAlpha, drawRect: drawRect, context: context)
+        } else {
+            drawAggregateLevel(region: region, level: level, fogAlpha: fogAlpha, drawRect: drawRect, context: context)
         }
+    }
 
+    // MARK: - Base Level (50m cells)
+
+    private func drawBaseLevel(region: MKCoordinateRegion, fogAlpha: Double, drawRect: CGRect, context: CGContext) {
         let cellPadLat = GridCell.latStep * 2
         let cellPadLng = GridCell.lngStep(atLatitude: region.center.latitude) * 2
         let paddedRegion = MKCoordinateRegion(
@@ -53,156 +57,7 @@ final class FogOverlayRenderer: MKOverlayRenderer {
 
         let cells = gridEngine.cellsWithCounts(in: paddedRegion)
 
-        let hasActiveAnimation = hasActiveClearing()
-
-        // Pass 1: Offscreen fog mask with blur
-        let fogDrawn = drawBlurredFog(
-            cells: cells,
-            fogAlpha: fogAlpha,
-            drawRect: drawRect,
-            mapRect: mapRect,
-            hasActiveAnimation: hasActiveAnimation,
-            into: context
-        )
-
-        if !fogDrawn {
-            renderFogDirect(
-                cells: cells,
-                fogAlpha: fogAlpha,
-                drawRect: drawRect,
-                into: context
-            )
-        }
-
-        // Pass 2: Crisp overlays drawn directly to map context
-        let isHeatMode = gridEngine.heatCells
-        let isPhotoMode = gridEngine.photoCells != nil
-        let dayHighlight = gridEngine.dayHighlightCells
-        let dayNew = gridEngine.dayNewCells
-
-        drawCellTints(
-            cells: cells,
-            isHeatMode: isHeatMode,
-            isPhotoMode: isPhotoMode,
-            dayHighlight: dayHighlight,
-            dayNew: dayNew,
-            context: context
-        )
-        drawInspectionHighlight(cells: cells, context: context)
-        drawPhotoCounts(
-            region: region,
-            isPhotoMode: isPhotoMode,
-            isHeatMode: isHeatMode,
-            context: context
-        )
-    }
-
-    // MARK: - Pass 1: Blurred Fog
-
-    private func drawBlurredFog(
-        cells: [(GridCell, Int)],
-        fogAlpha: Double,
-        drawRect: CGRect,
-        mapRect: MKMapRect,
-        hasActiveAnimation: Bool,
-        into context: CGContext
-    ) -> Bool {
-        let width = Int(drawRect.width)
-        let height = Int(drawRect.height)
-        guard width > 0, height > 0 else { return false }
-
-        let renderGen = gridEngine.renderGeneration
-        let canUseCache = !hasActiveAnimation
-            && cachedGeneration == renderGen
-            && mapRectsEqual(cachedMapRect, mapRect)
-            && cachedFogImage != nil
-
-        let fogImage: CGImage
-        if canUseCache, let cached = cachedFogImage {
-            fogImage = cached
-        } else {
-            guard let offscreen = CGContext(
-                data: nil,
-                width: width,
-                height: height,
-                bitsPerComponent: 8,
-                bytesPerRow: 0,
-                space: CGColorSpaceCreateDeviceRGB(),
-                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-            ) else {
-                return false
-            }
-
-            // Flip to match UIKit coordinate system
-            offscreen.translateBy(x: 0, y: CGFloat(height))
-            offscreen.scaleBy(x: 1, y: -1)
-
-            offscreen.translateBy(x: -drawRect.origin.x, y: -drawRect.origin.y)
-
-            offscreen.setFillColor(Constants.fogColor.withAlphaComponent(fogAlpha).cgColor)
-            offscreen.fill(drawRect)
-
-            for (cell, _) in cells {
-                let cellRect = cellScreenRect(for: cell)
-                offscreen.setBlendMode(.clear)
-                offscreen.fill(cellRect)
-            }
-            offscreen.setBlendMode(.normal)
-
-            // Clearing animation residuals
-            let now = Date()
-            let animationDuration: TimeInterval = 0.3
-            for (cell, revealTime) in gridEngine.recentlyRevealedCells {
-                let age = now.timeIntervalSince(revealTime)
-                guard age < animationDuration else { continue }
-                let progress = age / animationDuration
-                let residualAlpha = (1.0 - progress) * Double(Constants.fogColor.cgColor.alpha)
-                let cellRect = cellScreenRect(for: cell)
-                offscreen.setFillColor(Constants.fogColor.withAlphaComponent(residualAlpha).cgColor)
-                offscreen.fill(cellRect)
-            }
-
-            guard let rawImage = offscreen.makeImage() else { return false }
-
-            let sampleCell = cells.first.map { cellScreenRect(for: $0.0) }
-            let cellPixelWidth = sampleCell?.width ?? 30.0
-            let blurRadius = UInt32(Float(cellPixelWidth) * Constants.fogBlurRadiusFraction)
-
-            if blurRadius > 1 {
-                if let blurred = applyBlur(to: rawImage, radius: blurRadius) {
-                    fogImage = blurred
-                } else {
-                    fogImage = rawImage
-                }
-            } else {
-                fogImage = rawImage
-            }
-
-            if !hasActiveAnimation {
-                cachedFogImage = fogImage
-                cachedGeneration = renderGen
-                cachedMapRect = mapRect
-            }
-        }
-
-        context.saveGState()
-        // CGContext draws images with origin at bottom-left; flip for correct orientation
-        context.translateBy(x: drawRect.origin.x, y: drawRect.origin.y + drawRect.height)
-        context.scaleBy(x: 1, y: -1)
-        context.draw(fogImage, in: CGRect(x: 0, y: 0, width: drawRect.width, height: drawRect.height))
-        context.restoreGState()
-
-        return true
-    }
-
-    // MARK: - Fallback: Direct Fog (no blur)
-
-    private func renderFogDirect(
-        cells: [(GridCell, Int)],
-        fogAlpha: Double,
-        drawRect: CGRect,
-        into context: CGContext
-    ) {
+        // Pass 1: Fog with clear cutouts
         context.setFillColor(Constants.fogColor.withAlphaComponent(fogAlpha).cgColor)
         context.fill(drawRect)
 
@@ -213,20 +68,72 @@ final class FogOverlayRenderer: MKOverlayRenderer {
         }
         context.setBlendMode(.normal)
 
+        // Clearing animation
         let now = Date()
         let animationDuration: TimeInterval = 0.3
         for (cell, revealTime) in gridEngine.recentlyRevealedCells {
             let age = now.timeIntervalSince(revealTime)
             guard age < animationDuration else { continue }
             let progress = age / animationDuration
-            let residualAlpha = (1.0 - progress) * Double(Constants.fogColor.cgColor.alpha)
+            let residualAlpha = (1.0 - progress) * fogAlpha
             let cellRect = cellScreenRect(for: cell)
             context.setFillColor(Constants.fogColor.withAlphaComponent(residualAlpha).cgColor)
             context.fill(cellRect)
         }
+
+        // Pass 2: Cell tints
+        drawCellTints(
+            cells: cells,
+            isHeatMode: gridEngine.heatCells,
+            isPhotoMode: gridEngine.photoCells != nil,
+            dayHighlight: gridEngine.dayHighlightCells,
+            dayNew: gridEngine.dayNewCells,
+            context: context
+        )
+        drawInspectionHighlight(cells: cells, context: context)
+        drawPhotoCounts(
+            region: region,
+            isPhotoMode: gridEngine.photoCells != nil,
+            isHeatMode: gridEngine.heatCells,
+            context: context
+        )
     }
 
-    // MARK: - Pass 2: Crisp Overlays
+    // MARK: - Aggregate LOD Level
+
+    private func drawAggregateLevel(
+        region: MKCoordinateRegion,
+        level: GridEngine.LODLevel,
+        fogAlpha: Double,
+        drawRect: CGRect,
+        context: CGContext
+    ) {
+        context.setFillColor(Constants.fogColor.withAlphaComponent(fogAlpha).cgColor)
+        context.fill(drawRect)
+
+        let aggregated = gridEngine.aggregatedCells(in: region, level: level)
+        let isHeatMode = gridEngine.heatCells
+
+        for (lodCell, coverage) in aggregated {
+            let cellRect = lodCellScreenRect(for: lodCell)
+
+            context.setBlendMode(.clear)
+            context.fill(cellRect)
+            context.setBlendMode(.normal)
+
+            let tint: UIColor
+            if isHeatMode {
+                tint = coverageHeatColor(coverage)
+            } else {
+                let alpha = 0.25 + coverage * 0.30
+                tint = Constants.revealedCellTint.withAlphaComponent(alpha)
+            }
+            context.setFillColor(tint.cgColor)
+            context.fill(cellRect)
+        }
+    }
+
+    // MARK: - Cell Tints (base level)
 
     private func drawCellTints(
         cells: [(GridCell, Int)],
@@ -236,6 +143,8 @@ final class FogOverlayRenderer: MKOverlayRenderer {
         dayNew: Set<GridCell>?,
         context: CGContext
     ) {
+        let todayCells = gridEngine.todayVisitedCells
+
         for (cell, count) in cells {
             let cellRect = cellScreenRect(for: cell)
 
@@ -255,6 +164,10 @@ final class FogOverlayRenderer: MKOverlayRenderer {
                let specialColor = UIColor(hex: special.colorHex) {
                 context.setBlendMode(.normal)
                 context.setFillColor(specialColor.withAlphaComponent(Constants.specialTileAlpha).cgColor)
+                context.fill(cellRect)
+            } else if todayCells.contains(cell) {
+                context.setBlendMode(.normal)
+                context.setFillColor(UIColor(red: 0.3, green: 0.8, blue: 1.0, alpha: 0.55).cgColor)
                 context.fill(cellRect)
             } else {
                 context.setBlendMode(.normal)
@@ -323,74 +236,36 @@ final class FogOverlayRenderer: MKOverlayRenderer {
         }
     }
 
-    // MARK: - Blur via Accelerate
+    // MARK: - Heat Coverage Color (LOD only, when heat mode is on)
 
-    private func applyBlur(to image: CGImage, radius: UInt32) -> CGImage? {
-        var radius = radius
-        if radius % 2 == 0 { radius += 1 }
+    private func coverageHeatColor(_ coverage: Double) -> UIColor {
+        guard !heatColors.isEmpty else { return Constants.revealedCellTint }
 
-        var inBuffer = vImage_Buffer()
-        var outBuffer = vImage_Buffer()
+        let position = min(1.0, max(0.0, coverage))
+        let index = position * Double(heatColors.count - 1)
+        let lower = Int(floor(index))
+        let upper = min(lower + 1, heatColors.count - 1)
+        let fraction = CGFloat(index - Double(lower))
 
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        var mutableFormat = vImage_CGImageFormat(
-            bitsPerComponent: 8,
-            bitsPerPixel: 32,
-            colorSpace: Unmanaged.passUnretained(colorSpace),
-            bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.premultipliedLast.rawValue),
-            version: 0,
-            decode: nil,
-            renderingIntent: .defaultIntent
+        let c1 = heatColors[lower]
+        let c2 = heatColors[upper]
+
+        var r1: CGFloat = 0, g1: CGFloat = 0, b1: CGFloat = 0, a1: CGFloat = 0
+        var r2: CGFloat = 0, g2: CGFloat = 0, b2: CGFloat = 0, a2: CGFloat = 0
+        c1.getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
+        c2.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
+
+        let alpha: CGFloat = 0.35 + CGFloat(position) * 0.30
+
+        return UIColor(
+            red: r1 + (r2 - r1) * fraction,
+            green: g1 + (g2 - g1) * fraction,
+            blue: b1 + (b2 - b1) * fraction,
+            alpha: alpha
         )
-
-        var error = vImageBuffer_InitWithCGImage(
-            &inBuffer, &mutableFormat, nil, image, vImage_Flags(kvImageNoFlags)
-        )
-        guard error == kvImageNoError else { return nil }
-        defer { free(inBuffer.data) }
-
-        error = vImageBuffer_Init(&outBuffer, inBuffer.height, inBuffer.width, 32, vImage_Flags(kvImageNoFlags))
-        guard error == kvImageNoError else { return nil }
-        defer { free(outBuffer.data) }
-
-        // 3x box convolve approximates gaussian blur
-        for _ in 0..<3 {
-            error = vImageBoxConvolve_ARGB8888(
-                &inBuffer, &outBuffer, nil, 0, 0,
-                radius, radius,
-                nil, vImage_Flags(kvImageEdgeExtend)
-            )
-            guard error == kvImageNoError else { return nil }
-            swap(&inBuffer, &outBuffer)
-        }
-
-        // After 3 swaps, result is in inBuffer
-        let result = vImageCreateCGImageFromBuffer(
-            &inBuffer, &mutableFormat, nil, nil, vImage_Flags(kvImageNoFlags), &error
-        )
-        guard error == kvImageNoError else { return nil }
-        return result?.takeRetainedValue()
     }
 
-    // MARK: - Helpers
-
-    private func mapRectsEqual(_ a: MKMapRect, _ b: MKMapRect) -> Bool {
-        a.origin.x == b.origin.x
-            && a.origin.y == b.origin.y
-            && a.size.width == b.size.width
-            && a.size.height == b.size.height
-    }
-
-    private func hasActiveClearing() -> Bool {
-        let now = Date()
-        let animationDuration: TimeInterval = 0.3
-        for (_, revealTime) in gridEngine.recentlyRevealedCells {
-            if now.timeIntervalSince(revealTime) < animationDuration {
-                return true
-            }
-        }
-        return false
-    }
+    // MARK: - Geometry Helpers
 
     private func cellScreenRect(for cell: GridCell) -> CGRect {
         let sw = cell.coordinate
@@ -407,7 +282,26 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             height: abs(nePoint.y - swPoint.y)
         )
 
-        return rect(for: cellMapRect).insetBy(dx: -0.5, dy: -0.5)
+        return rect(for: cellMapRect).integral
+    }
+
+    private func lodCellScreenRect(for lodCell: GridEngine.LODCell) -> CGRect {
+        let sw = lodCell.coordinate
+        let step = lodCell.degreeStep
+        let neLat = sw.latitude + step
+        let neLng = sw.longitude + step
+
+        let swPoint = MKMapPoint(CLLocationCoordinate2D(latitude: sw.latitude, longitude: sw.longitude))
+        let nePoint = MKMapPoint(CLLocationCoordinate2D(latitude: neLat, longitude: neLng))
+
+        let cellMapRect = MKMapRect(
+            x: min(swPoint.x, nePoint.x),
+            y: min(swPoint.y, nePoint.y),
+            width: abs(nePoint.x - swPoint.x),
+            height: abs(nePoint.y - swPoint.y)
+        )
+
+        return rect(for: cellMapRect).integral
     }
 
     private func photoDensityColor(for photoCount: Int) -> UIColor? {

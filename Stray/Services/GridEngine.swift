@@ -24,6 +24,7 @@ final class GridEngine {
     private(set) var photoDotsData: [GridCell: Int]? = nil
     private(set) var dayHighlightCells: Set<GridCell>? = nil
     private(set) var dayNewCells: Set<GridCell>? = nil
+    private(set) var todayVisitedCells: Set<GridCell> = []
     private(set) var compassTarget: GridCell? = nil
     private(set) var inspectedCell: GridCell? = nil
     private(set) var recentlyRevealedCells: [GridCell: Date] = [:]
@@ -198,6 +199,35 @@ final class GridEngine {
         renderGeneration += 1
     }
 
+    // MARK: - Today's Visited Cells
+
+    func loadTodayCells(from context: ModelContext) {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd"
+        let todayString = formatter.string(from: Date())
+
+        var descriptor = FetchDescriptor<CellVisit>(
+            predicate: #Predicate { $0.dateString == todayString }
+        )
+        descriptor.propertiesToFetch = [\.cellKey]
+        let visits = (try? context.fetch(descriptor)) ?? []
+
+        todayVisitedCells.removeAll(keepingCapacity: true)
+        for visit in visits {
+            let parts = visit.cellKey.split(separator: "_")
+            guard parts.count == 2,
+                  let latIdx = Int(parts[0]),
+                  let lngIdx = Int(parts[1]) else { continue }
+            todayVisitedCells.insert(GridCell(latIndex: latIdx, lngIndex: lngIdx))
+        }
+    }
+
+    func markCellVisitedToday(_ cell: GridCell) {
+        guard !todayVisitedCells.contains(cell) else { return }
+        todayVisitedCells.insert(cell)
+        markDirty()
+    }
+
     // MARK: - Heat Mode
 
     func enterHeatMode() {
@@ -332,32 +362,106 @@ final class GridEngine {
         return tier(oldCount) != tier(newCount)
     }
 
-    // MARK: - Region Summaries (zoom-out pins)
+    // MARK: - LOD Aggregation
 
-    /// Returns region centroids with cell counts for zoom-out pins.
-    /// Each entry represents a SpatialBucket (1° lat/lng) with at least 1 cell.
-    func regionSummaries() -> [(coordinate: CLLocationCoordinate2D, cellCount: Int)] {
-        let source = photoCells ?? timelineCells ?? revealedCells
+    /// LOD levels for multi-scale rendering.
+    /// 4x steps — each kicks in when the previous level's cells get too small to see.
+    enum LODLevel: Int, CaseIterable {
+        case base = 1            // 50m
+        case block = 4           // 200m
+        case district = 64       // 3.2km
+        case city = 256          // 12.8km
+        case metro = 1024        // ~51km
+        case region = 4096       // ~205km
 
-        var bucketCounts: [SpatialBucket: Int] = [:]
-        var bucketLatSum: [SpatialBucket: Double] = [:]
-        var bucketLngSum: [SpatialBucket: Double] = [:]
+        var subcellCount: Int { rawValue * rawValue }
+        /// Degree step used for uniform lat/lng bucketing
+        var latStep: Double { GridCell.latStep * Double(rawValue) }
 
-        for (cell, _) in source {
-            let bucket = bucketFor(cell)
-            bucketCounts[bucket, default: 0] += 1
-            let coord = cell.coordinate
-            bucketLatSum[bucket, default: 0] += coord.latitude
-            bucketLngSum[bucket, default: 0] += coord.longitude
+        static func level(for latitudeDelta: Double) -> LODLevel {
+            switch latitudeDelta {
+            case ..<0.06:  return .base
+            case ..<0.20:  return .block
+            case ..<0.60:  return .district
+            case ..<3.0:   return .city
+            case ..<6.0:   return .metro
+            default:       return .region
+            }
+        }
+    }
+
+    /// An aggregated cell using uniform degree-based bucketing.
+    /// Same degree step for lat and lng — avoids latitude-dependent lngStep drift.
+    struct LODCell: Hashable {
+        let latBucket: Int
+        let lngBucket: Int
+        let degreeStep: Double
+
+        func hash(into hasher: inout Hasher) {
+            hasher.combine(latBucket)
+            hasher.combine(lngBucket)
         }
 
-        return bucketCounts.compactMap { (bucket, count) in
-            guard let latSum = bucketLatSum[bucket], let lngSum = bucketLngSum[bucket] else { return nil }
-            let centroid = CLLocationCoordinate2D(
-                latitude: latSum / Double(count),
-                longitude: lngSum / Double(count)
+        static func == (lhs: LODCell, rhs: LODCell) -> Bool {
+            lhs.latBucket == rhs.latBucket && lhs.lngBucket == rhs.lngBucket
+        }
+
+        var coordinate: CLLocationCoordinate2D {
+            CLLocationCoordinate2D(
+                latitude: Double(latBucket) * degreeStep,
+                longitude: Double(lngBucket) * degreeStep
             )
-            return (coordinate: centroid, cellCount: count)
+        }
+
+        var latStep: Double { degreeStep }
+        func lngStep(atLatitude lat: Double) -> Double { degreeStep }
+    }
+
+    /// Returns aggregated cells for the given region at the specified LOD level.
+    /// Each cell has a coverage fraction (0.0–1.0) representing what portion of subcells are revealed.
+    func aggregatedCells(in region: MKCoordinateRegion, level: LODLevel) -> [(LODCell, Double)] {
+        let source = timelineCells ?? revealedCells
+        guard !source.isEmpty else { return [] }
+
+        let degStep = level.latStep // uniform degree step
+        let subcellArea = Double(level.subcellCount)
+
+        var buckets: [LODCell: Int] = [:]
+
+        let minLat = region.center.latitude - region.span.latitudeDelta / 2.0
+        let maxLat = region.center.latitude + region.span.latitudeDelta / 2.0
+        let minLng = region.center.longitude - region.span.longitudeDelta / 2.0
+        let maxLng = region.center.longitude + region.span.longitudeDelta / 2.0
+
+        let minLatBucket = max(-90, Int(floor(minLat)))
+        let maxLatBucket = min(90, Int(floor(maxLat)))
+        let minLngBucket = max(-180, Int(floor(minLng)))
+        let maxLngBucket = min(180, Int(floor(maxLng)))
+
+        for latB in minLatBucket...maxLatBucket {
+            for lngB in minLngBucket...maxLngBucket {
+                let bucket = SpatialBucket(latDegree: latB, lngDegree: lngB)
+                guard let cells = spatialIndex[bucket] else { continue }
+                for cell in cells {
+                    guard source[cell] != nil else { continue }
+                    let coord = cell.coordinate
+                    let lodLatB = Int(floor(coord.latitude / degStep))
+                    let lodLngB = Int(floor(coord.longitude / degStep))
+                    let lodCell = LODCell(latBucket: lodLatB, lngBucket: lodLngB, degreeStep: degStep)
+                    buckets[lodCell, default: 0] += 1
+                }
+            }
+        }
+
+        let pad = degStep
+        return buckets.compactMap { (lodCell, count) in
+            let coord = lodCell.coordinate
+            guard coord.latitude >= minLat - pad && coord.latitude <= maxLat + pad
+                && coord.longitude >= minLng - pad && coord.longitude <= maxLng + pad else {
+                return nil
+            }
+            let coverage = min(1.0, Double(count) / subcellArea)
+            return (lodCell, coverage)
         }
     }
 

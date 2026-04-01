@@ -295,22 +295,6 @@ final class PersistenceService {
         }
     }
 
-    /// Persists a completed Stray session
-    func saveStraySession(startedAt: Date, endedAt: Date, cellsRevealed: Int, distance: Double, duration: Double, pausedDuration: Double = 0, pathData: Data? = nil, healthSteps: Int? = nil, healthDistance: Double? = nil) {
-        let session = StraySession()
-        session.startedAt = startedAt
-        session.endedAt = endedAt
-        session.cellsRevealedCount = cellsRevealed
-        session.distanceMeters = distance
-        session.durationSeconds = duration
-        session.pausedDurationSeconds = pausedDuration
-        session.pathData = pathData
-        session.healthStepCount = healthSteps
-        session.healthDistanceMeters = healthDistance
-        context.insert(session)
-        save()
-    }
-
     // MARK: - Timeline
 
     /// Returns all cells first revealed on or before `date`, keyed by GridCell with their visit count.
