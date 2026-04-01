@@ -57,15 +57,21 @@ final class FogOverlayRenderer: MKOverlayRenderer {
 
         let cells = gridEngine.cellsWithCounts(in: paddedRegion)
 
-        // Pass 1: Fog with clear cutouts
+        // Build a single combined path for all cells (expanded slightly so
+        // adjacent rects overlap — fillPath renders the union exactly once,
+        // eliminating both sub-pixel gaps and double-compositing artifacts).
+        let cellPath = CGMutablePath()
+        for (cell, _) in cells {
+            cellPath.addRect(cellScreenRect(for: cell).insetBy(dx: -0.5, dy: -0.5))
+        }
+
+        // Pass 1: Fog with clear cutouts (single fill — no seams)
         context.setFillColor(Constants.fogColor.withAlphaComponent(fogAlpha).cgColor)
         context.fill(drawRect)
 
-        for (cell, _) in cells {
-            let cellRect = cellScreenRect(for: cell)
-            context.setBlendMode(.clear)
-            context.fill(cellRect)
-        }
+        context.addPath(cellPath)
+        context.setBlendMode(.clear)
+        context.fillPath()
         context.setBlendMode(.normal)
 
         // Clearing animation
@@ -81,8 +87,13 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             context.fill(cellRect)
         }
 
-        // Pass 2: Cell tints
-        drawCellTints(
+        // Pass 2: Default tint (single fill — no seams)
+        context.addPath(cellPath)
+        context.setFillColor(Constants.revealedCellTint.cgColor)
+        context.fillPath()
+
+        // Pass 3: Per-cell overrides for non-default tints
+        drawCellTintOverrides(
             cells: cells,
             isHeatMode: gridEngine.heatCells,
             isPhotoMode: gridEngine.photoCells != nil,
@@ -113,8 +124,9 @@ final class FogOverlayRenderer: MKOverlayRenderer {
 
         let aggregated = gridEngine.aggregatedCells(in: region, level: level)
         let isHeatMode = gridEngine.heatCells
+        let isPhotoMode = gridEngine.photoCells != nil
 
-        for (lodCell, coverage) in aggregated {
+        for (lodCell, coverage, _) in aggregated {
             let cellRect = lodCellScreenRect(for: lodCell)
 
             context.setBlendMode(.clear)
@@ -122,7 +134,10 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             context.setBlendMode(.normal)
 
             let tint: UIColor
-            if isHeatMode {
+            if isPhotoMode {
+                let alpha = 0.20 + coverage * 0.25
+                tint = Constants.photoDensityMedium.withAlphaComponent(alpha)
+            } else if isHeatMode {
                 tint = coverageHeatColor(coverage)
             } else {
                 let alpha = 0.25 + coverage * 0.30
@@ -131,11 +146,75 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             context.setFillColor(tint.cgColor)
             context.fill(cellRect)
         }
+
+        // Count badges
+        if isPhotoMode {
+            drawAggregateBadges(aggregated: aggregated, style: .photo, context: context)
+        }
+    }
+
+    // MARK: - LOD Count Badges
+
+    private enum BadgeStyle {
+        case photo
+
+        var backgroundColor: UIColor {
+            switch self {
+            case .photo: return UIColor(red: 0.65, green: 0.25, blue: 0.90, alpha: 0.85)
+            }
+        }
+
+        var textColor: UIColor { .white }
+    }
+
+    private func drawAggregateBadges(
+        aggregated: [(GridEngine.LODCell, Double, Int)],
+        style: BadgeStyle,
+        context: CGContext
+    ) {
+        UIGraphicsPushContext(context)
+        defer { UIGraphicsPopContext() }
+
+        for (lodCell, _, count) in aggregated {
+            guard count > 0 else { continue }
+            let cellRect = lodCellScreenRect(for: lodCell)
+
+            let label = count >= 1000 ? "\(count / 1000)k" : "\(count)"
+            let fontSize = max(min(cellRect.width * 0.18, 28), 10)
+            let font = UIFont.systemFont(ofSize: fontSize, weight: .bold)
+            let attrs: [NSAttributedString.Key: Any] = [
+                .font: font,
+                .foregroundColor: style.textColor
+            ]
+            let textSize = (label as NSString).size(withAttributes: attrs)
+            let padH: CGFloat = fontSize * 0.4
+            let padV: CGFloat = fontSize * 0.2
+            let badgeSize = CGSize(
+                width: textSize.width + padH * 2,
+                height: textSize.height + padV * 2
+            )
+            let badgeOrigin = CGPoint(
+                x: cellRect.midX - badgeSize.width / 2,
+                y: cellRect.midY - badgeSize.height / 2
+            )
+            let badgeRect = CGRect(origin: badgeOrigin, size: badgeSize)
+            let cornerRadius = badgeSize.height / 2
+
+            let path = UIBezierPath(roundedRect: badgeRect, cornerRadius: cornerRadius)
+            style.backgroundColor.setFill()
+            path.fill()
+
+            let textOrigin = CGPoint(
+                x: badgeRect.midX - textSize.width / 2,
+                y: badgeRect.midY - textSize.height / 2
+            )
+            (label as NSString).draw(at: textOrigin, withAttributes: attrs)
+        }
     }
 
     // MARK: - Cell Tints (base level)
 
-    private func drawCellTints(
+    private func drawCellTintOverrides(
         cells: [(GridCell, Int)],
         isHeatMode: Bool,
         isPhotoMode: Bool,
@@ -145,49 +224,74 @@ final class FogOverlayRenderer: MKOverlayRenderer {
     ) {
         let todayCells = gridEngine.todayVisitedCells
 
+        // Batch today cells into a single path (same fix as default tint)
+        if !isPhotoMode && !isHeatMode {
+            let todayPath = CGMutablePath()
+            for (cell, _) in cells {
+                guard todayCells.contains(cell) else { continue }
+                guard gridEngine.specialTile(for: cell) == nil else { continue }
+                todayPath.addRect(cellScreenRect(for: cell).insetBy(dx: -0.5, dy: -0.5))
+            }
+            if !todayPath.isEmpty {
+                context.addPath(todayPath)
+                context.setFillColor(UIColor(red: 0.3, green: 0.8, blue: 1.0, alpha: 0.55).cgColor)
+                context.fillPath()
+            }
+        }
+
         for (cell, count) in cells {
             let cellRect = cellScreenRect(for: cell)
 
             if isPhotoMode {
                 if let tint = photoDensityColor(for: count) {
-                    context.setBlendMode(.normal)
                     context.setFillColor(tint.cgColor)
                     context.fill(cellRect)
                 }
             } else if isHeatMode {
                 if let tint = heatColor(for: count) {
-                    context.setBlendMode(.normal)
                     context.setFillColor(tint.cgColor)
                     context.fill(cellRect)
                 }
             } else if let special = gridEngine.specialTile(for: cell),
                let specialColor = UIColor(hex: special.colorHex) {
-                context.setBlendMode(.normal)
                 context.setFillColor(specialColor.withAlphaComponent(Constants.specialTileAlpha).cgColor)
                 context.fill(cellRect)
-            } else if todayCells.contains(cell) {
-                context.setBlendMode(.normal)
-                context.setFillColor(UIColor(red: 0.3, green: 0.8, blue: 1.0, alpha: 0.55).cgColor)
-                context.fill(cellRect)
-            } else {
-                context.setBlendMode(.normal)
-                context.setFillColor(Constants.revealedCellTint.cgColor)
-                context.fill(cellRect)
             }
-            context.setBlendMode(.normal)
 
-            if let dayHighlight {
+        }
+
+        // Batch day highlight fills into paths to avoid gridline artifacts
+        if let dayHighlight {
+            let newPath = CGMutablePath()
+            let existingPath = CGMutablePath()
+            let dimPath = CGMutablePath()
+            for (cell, _) in cells {
+                let expandedRect = cellScreenRect(for: cell).insetBy(dx: -0.5, dy: -0.5)
                 if dayHighlight.contains(cell) {
                     let isNew = dayNew?.contains(cell) ?? false
-                    let highlightColor = isNew
-                        ? UIColor(red: 0.3, green: 0.8, blue: 1.0, alpha: 0.45)
-                        : UIColor.white.withAlphaComponent(0.3)
-                    context.setFillColor(highlightColor.cgColor)
-                    context.fill(cellRect)
+                    if isNew {
+                        newPath.addRect(expandedRect)
+                    } else {
+                        existingPath.addRect(expandedRect)
+                    }
                 } else {
-                    context.setFillColor(Constants.fogColor.withAlphaComponent(0.5).cgColor)
-                    context.fill(cellRect)
+                    dimPath.addRect(expandedRect)
                 }
+            }
+            if !dimPath.isEmpty {
+                context.addPath(dimPath)
+                context.setFillColor(Constants.fogColor.withAlphaComponent(0.5).cgColor)
+                context.fillPath()
+            }
+            if !existingPath.isEmpty {
+                context.addPath(existingPath)
+                context.setFillColor(UIColor.white.withAlphaComponent(0.3).cgColor)
+                context.fillPath()
+            }
+            if !newPath.isEmpty {
+                context.addPath(newPath)
+                context.setFillColor(UIColor(red: 0.3, green: 0.8, blue: 1.0, alpha: 0.45).cgColor)
+                context.fillPath()
             }
         }
     }
@@ -282,7 +386,7 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             height: abs(nePoint.y - swPoint.y)
         )
 
-        return rect(for: cellMapRect).integral
+        return rect(for: cellMapRect)
     }
 
     private func lodCellScreenRect(for lodCell: GridEngine.LODCell) -> CGRect {

@@ -418,8 +418,8 @@ final class GridEngine {
     }
 
     /// Returns aggregated cells for the given region at the specified LOD level.
-    /// Each cell has a coverage fraction (0.0–1.0) representing what portion of subcells are revealed.
-    func aggregatedCells(in region: MKCoordinateRegion, level: LODLevel) -> [(LODCell, Double)] {
+    /// Each cell has a coverage fraction (0.0–1.0) and the raw base-cell count.
+    func aggregatedCells(in region: MKCoordinateRegion, level: LODLevel) -> [(LODCell, Double, Int)] {
         let source = timelineCells ?? revealedCells
         guard !source.isEmpty else { return [] }
 
@@ -461,7 +461,7 @@ final class GridEngine {
                 return nil
             }
             let coverage = min(1.0, Double(count) / subcellArea)
-            return (lodCell, coverage)
+            return (lodCell, coverage, count)
         }
     }
 
