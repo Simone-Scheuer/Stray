@@ -420,7 +420,7 @@ final class GridEngine {
     /// Returns aggregated cells for the given region at the specified LOD level.
     /// Each cell has a coverage fraction (0.0–1.0) and the raw base-cell count.
     func aggregatedCells(in region: MKCoordinateRegion, level: LODLevel) -> [(LODCell, Double, Int)] {
-        let source = timelineCells ?? revealedCells
+        let source = photoCells ?? timelineCells ?? revealedCells
         guard !source.isEmpty else { return [] }
 
         let degStep = level.latStep // uniform degree step
@@ -442,13 +442,14 @@ final class GridEngine {
             for lngB in minLngBucket...maxLngBucket {
                 let bucket = SpatialBucket(latDegree: latB, lngDegree: lngB)
                 guard let cells = spatialIndex[bucket] else { continue }
+                let sumValues = photoCells != nil
                 for cell in cells {
-                    guard source[cell] != nil else { continue }
+                    guard let value = source[cell] else { continue }
                     let coord = cell.coordinate
                     let lodLatB = Int(floor(coord.latitude / degStep))
                     let lodLngB = Int(floor(coord.longitude / degStep))
                     let lodCell = LODCell(latBucket: lodLatB, lngBucket: lodLngB, degreeStep: degStep)
-                    buckets[lodCell, default: 0] += 1
+                    buckets[lodCell, default: 0] += sumValues ? value : 1
                 }
             }
         }

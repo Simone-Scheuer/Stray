@@ -234,14 +234,6 @@ struct SettingsView: View {
                 Text("Inspired by the Situationist International concept of the d\u{00E9}rive — an unplanned journey through a landscape, guided by the pull of the terrain and the encounters you find there.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
-
-                Text("Stray is anti-optimization. No leaderboards, no streaks to protect, no pressure. Just a quiet record of everywhere you've been.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-
-                Text("Life Cartography.")
-                    .font(.callout.italic())
-                    .foregroundStyle(.secondary)
             }
             .padding(.vertical, 4)
         } header: {

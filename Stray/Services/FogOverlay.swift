@@ -147,69 +147,6 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             context.fill(cellRect)
         }
 
-        // Count badges
-        if isPhotoMode {
-            drawAggregateBadges(aggregated: aggregated, style: .photo, context: context)
-        }
-    }
-
-    // MARK: - LOD Count Badges
-
-    private enum BadgeStyle {
-        case photo
-
-        var backgroundColor: UIColor {
-            switch self {
-            case .photo: return UIColor(red: 0.65, green: 0.25, blue: 0.90, alpha: 0.85)
-            }
-        }
-
-        var textColor: UIColor { .white }
-    }
-
-    private func drawAggregateBadges(
-        aggregated: [(GridEngine.LODCell, Double, Int)],
-        style: BadgeStyle,
-        context: CGContext
-    ) {
-        UIGraphicsPushContext(context)
-        defer { UIGraphicsPopContext() }
-
-        for (lodCell, _, count) in aggregated {
-            guard count > 0 else { continue }
-            let cellRect = lodCellScreenRect(for: lodCell)
-
-            let label = count >= 1000 ? "\(count / 1000)k" : "\(count)"
-            let fontSize = max(min(cellRect.width * 0.18, 28), 10)
-            let font = UIFont.systemFont(ofSize: fontSize, weight: .bold)
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .foregroundColor: style.textColor
-            ]
-            let textSize = (label as NSString).size(withAttributes: attrs)
-            let padH: CGFloat = fontSize * 0.4
-            let padV: CGFloat = fontSize * 0.2
-            let badgeSize = CGSize(
-                width: textSize.width + padH * 2,
-                height: textSize.height + padV * 2
-            )
-            let badgeOrigin = CGPoint(
-                x: cellRect.midX - badgeSize.width / 2,
-                y: cellRect.midY - badgeSize.height / 2
-            )
-            let badgeRect = CGRect(origin: badgeOrigin, size: badgeSize)
-            let cornerRadius = badgeSize.height / 2
-
-            let path = UIBezierPath(roundedRect: badgeRect, cornerRadius: cornerRadius)
-            style.backgroundColor.setFill()
-            path.fill()
-
-            let textOrigin = CGPoint(
-                x: badgeRect.midX - textSize.width / 2,
-                y: badgeRect.midY - textSize.height / 2
-            )
-            (label as NSString).draw(at: textOrigin, withAttributes: attrs)
-        }
     }
 
     // MARK: - Cell Tints (base level)
