@@ -44,15 +44,13 @@ struct StatsEngine {
     }
 
     func totalDistance() -> Double {
-        let descriptor = FetchDescriptor<DailySummary>()
-        guard let summaries = try? context.fetch(descriptor) else { return 0 }
-        return summaries.reduce(0.0) { $0 + $1.distanceMeters }
+        let deduped = dedupedSummaries()
+        return deduped.values.reduce(0.0) { $0 + $1.distanceMeters }
     }
 
     func totalSteps() -> Int {
-        let descriptor = FetchDescriptor<DailySummary>()
-        guard let summaries = try? context.fetch(descriptor) else { return 0 }
-        return summaries.reduce(0) { $0 + $1.stepCount }
+        let deduped = dedupedSummaries()
+        return deduped.values.reduce(0) { $0 + $1.stepCount }
     }
 
     func todayStats() -> (cells: Int, distance: Double, steps: Int) {
@@ -64,10 +62,32 @@ struct StatsEngine {
         let descriptor = FetchDescriptor<DailySummary>(
             predicate: #Predicate<DailySummary> { $0.dateString == today }
         )
-        guard let summary = (try? context.fetch(descriptor))?.first else {
+        guard let results = try? context.fetch(descriptor), !results.isEmpty else {
             return (cells: 0, distance: 0, steps: 0)
         }
-        return (cells: summary.cellsRevealed, distance: summary.distanceMeters, steps: summary.stepCount)
+        // If duplicates exist, take the max of each field
+        let cells = results.map(\.cellsRevealed).max() ?? 0
+        let distance = results.map(\.distanceMeters).max() ?? 0
+        let steps = results.map(\.stepCount).max() ?? 0
+        return (cells: cells, distance: distance, steps: steps)
+    }
+
+    /// Groups summaries by dateString, keeping the max value for each field per day.
+    /// This prevents CloudKit duplicates from inflating totals.
+    private func dedupedSummaries() -> [String: DailySummary] {
+        let descriptor = FetchDescriptor<DailySummary>()
+        guard let all = try? context.fetch(descriptor) else { return [:] }
+        var best: [String: DailySummary] = [:]
+        for summary in all {
+            if let existing = best[summary.dateString] {
+                existing.cellsRevealed = max(existing.cellsRevealed, summary.cellsRevealed)
+                existing.distanceMeters = max(existing.distanceMeters, summary.distanceMeters)
+                existing.stepCount = max(existing.stepCount, summary.stepCount)
+            } else {
+                best[summary.dateString] = summary
+            }
+        }
+        return best
     }
 
     func totalAreaSquareMeters() -> Double {

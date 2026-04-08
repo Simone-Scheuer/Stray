@@ -40,7 +40,7 @@ enum SeedDataService {
         var cellTracker: [String: (firstDate: Date, visitCount: Int)] = [:]
 
         for dayOffset in (1...dayCount).reversed() {
-            let dayDate = calendar.date(byAdding: .day, value: -dayOffset, to: today)!
+            guard let dayDate = calendar.date(byAdding: .day, value: -dayOffset, to: today) else { continue }
             let dateString = formatDate(dayDate)
 
             // Pick 1-3 anchors to walk near today
@@ -63,11 +63,11 @@ enum SeedDataService {
                     // Time spread across the day (morning walk, afternoon walk, etc.)
                     let baseHour = a == 0 ? 8 : (a == 1 ? 13 : 18)
                     let minuteOffset = step * 2 + rng.nextInt(min: 0, max: 3)
-                    let visitTime = calendar.date(
+                    guard let visitTime = calendar.date(
                         byAdding: .minute,
                         value: baseHour * 60 + minuteOffset,
                         to: dayDate
-                    )!
+                    ) else { continue }
 
                     todayCells.append((cell, visitTime))
 
@@ -100,8 +100,9 @@ enum SeedDataService {
         var cityForCell: [String: String] = [:]
         for (key, info) in cellTracker {
             let parts = key.split(separator: "_")
-            let latIdx = Int(parts[0])!
-            let lngIdx = Int(parts[1])!
+            guard parts.count == 2,
+                  let latIdx = Int(parts[0]),
+                  let lngIdx = Int(parts[1]) else { continue }
 
             let cell = RevealedCell(latIndex: latIdx, lngIndex: lngIdx, cellKey: key, city: "Portland")
             cell.firstVisitedAt = info.firstDate
@@ -139,9 +140,10 @@ enum SeedDataService {
         let sessionDays = [3, 7, 12, 18, 25, 33, 40]
         for dayOffset in sessionDays {
             guard dayOffset <= dayCount else { continue }
-            let sessionDate = calendar.date(byAdding: .day, value: -dayOffset, to: today)!
+            guard let sessionDate = calendar.date(byAdding: .day, value: -dayOffset, to: today),
+                  let sessionStart = calendar.date(byAdding: .hour, value: 9, to: sessionDate) else { continue }
             let session = StraySession()
-            session.startedAt = calendar.date(byAdding: .hour, value: 9, to: sessionDate)!
+            session.startedAt = sessionStart
             let duration = Double(rng.nextInt(min: 1200, max: 3600))
             session.endedAt = session.startedAt.addingTimeInterval(duration)
             session.durationSeconds = duration

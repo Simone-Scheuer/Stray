@@ -26,8 +26,6 @@ final class PersistenceService {
     private var pendingDistance: Double = 0.0
     private var pendingSteps: Int = 0
 
-    private var lastSaveFailureTime: Date?
-
     init(context: ModelContext) {
         self.context = context
     }
@@ -319,13 +317,25 @@ final class PersistenceService {
     }
 
     /// Returns all days on which the user was active, sorted oldest-first.
+    /// Deduplicates in case CloudKit sync created multiple records for the same date.
     func fetchActiveDays() -> [DailySummary] {
         let descriptor = FetchDescriptor<DailySummary>(
             predicate: #Predicate<DailySummary> { $0.isActiveDay == true },
             sortBy: [SortDescriptor(\.dateString)]
         )
         do {
-            return try context.fetch(descriptor)
+            let all = try context.fetch(descriptor)
+            var seen: [String: DailySummary] = [:]
+            for summary in all {
+                if let existing = seen[summary.dateString] {
+                    existing.cellsRevealed = max(existing.cellsRevealed, summary.cellsRevealed)
+                    existing.distanceMeters = max(existing.distanceMeters, summary.distanceMeters)
+                    existing.stepCount = max(existing.stepCount, summary.stepCount)
+                } else {
+                    seen[summary.dateString] = summary
+                }
+            }
+            return seen.values.sorted { $0.dateString < $1.dateString }
         } catch {
             Self.logger.error("Failed to fetch active days: \(error.localizedDescription, privacy: .public)")
             return []
@@ -483,18 +493,12 @@ final class PersistenceService {
     }
 
     func save() {
-        if let failureTime = lastSaveFailureTime,
-           Date().timeIntervalSince(failureTime) < 10.0 {
-            return
-        }
         do {
             try context.save()
             lastPersistenceError = nil
-            lastSaveFailureTime = nil
         } catch {
             Self.logger.error("SwiftData save failed: \(error.localizedDescription, privacy: .public)")
             lastPersistenceError = error
-            lastSaveFailureTime = Date()
         }
     }
 

@@ -2,16 +2,19 @@ import SwiftUI
 import SwiftData
 import UIKit
 import Combine
+import os
 
 @main
 struct StrayApp: App {
+    private static let logger = Logger(subsystem: "com.stray.app", category: "app")
+
     let modelContainer: ModelContainer
     private let gridEngine: GridEngine
     private let locationService: LocationService
     private let persistenceService: PersistenceService
     private let statsViewModel: StatsViewModel
     private let photoService: PhotoService
-    private let healthService: HealthService
+    private let pedometerService: PedometerService
 
     @State private var showOnboarding: Bool
     @State private var containerError: Bool = false
@@ -35,7 +38,15 @@ struct StrayApp: App {
                 )
                 didFallback = true
             } catch {
-                fatalError("Failed to create even in-memory ModelContainer: \(error)")
+                Self.logger.fault("Failed to create even in-memory ModelContainer: \(error.localizedDescription, privacy: .public)")
+                // Last resort: bare minimum in-memory with single model
+                do {
+                    let minimalConfig = ModelConfiguration(isStoredInMemoryOnly: true)
+                    container = try ModelContainer(for: RevealedCell.self, configurations: minimalConfig)
+                } catch {
+                    fatalError("Cannot create any ModelContainer: \(error)")
+                }
+                didFallback = true
             }
         }
         self.modelContainer = container
@@ -124,14 +135,14 @@ struct StrayApp: App {
         }
 
         let photo = PhotoService()
-        let health = HealthService()
+        let pedometer = PedometerService()
 
         self.gridEngine = grid
         self.locationService = location
         self.persistenceService = persistence
         self.statsViewModel = StatsViewModel()
         self.photoService = photo
-        self.healthService = health
+        self.pedometerService = pedometer
 
         let onboardingCompleted = UserDefaults.standard.bool(forKey: Constants.hasCompletedOnboardingKey)
         self._showOnboarding = State(initialValue: !onboardingCompleted)
@@ -145,9 +156,9 @@ struct StrayApp: App {
                 .environment(\.persistenceService, persistenceService)
                 .environment(\.statsViewModel, statsViewModel)
                 .environment(\.photoService, photoService)
-                .environment(\.healthService, healthService)
+                .environment(\.pedometerService, pedometerService)
                 .fullScreenCover(isPresented: $showOnboarding) {
-                    OnboardingView(locationService: locationService, photoService: photoService, healthService: healthService) {
+                    OnboardingView(locationService: locationService, photoService: photoService) {
                         showOnboarding = false
                         bootRevealFromPhotos()
                     }
@@ -185,9 +196,10 @@ struct StrayApp: App {
                     }
                 }
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+                    persistenceService.save()
                     deduplicateAndReload()
                     photoService.refreshAuthorizationStatus()
-                    healthService.refreshAuthorizationStatus()
+                    pedometerService.refreshAuthorizationStatus()
                 }
         }
         .modelContainer(modelContainer)

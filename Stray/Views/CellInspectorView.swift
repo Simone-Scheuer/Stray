@@ -160,6 +160,7 @@ struct CellInspectorView: View {
     // MARK: - Actions
 
     private func markTile(label: String, icon: String, colorHex: String) {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
         persistenceService?.saveSpecialTile(for: cell, label: label, icon: icon, colorHex: colorHex)
         let tile = persistenceService?.fetchSpecialTile(for: cell)
         gridEngine.setSpecialTile(tile, for: cell)
@@ -168,6 +169,7 @@ struct CellInspectorView: View {
     }
 
     private func removeMarker() {
+        UINotificationFeedbackGenerator().notificationOccurred(.warning)
         persistenceService?.deleteSpecialTile(for: cell)
         gridEngine.setSpecialTile(nil, for: cell)
     }

@@ -7,7 +7,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     var mutedMapStyle: Bool = true
     var showTraffic: Bool = false
     var allowRotation: Bool = true
-    var mapStyle: String = "satellite"
+    var mapStyle: String = "standard"
     @Binding var isFollowingUser: Bool
     var onCellTapped: ((GridCell) -> Void)?
 
@@ -123,7 +123,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         var lastMutedMapStyle: Bool = true
         var lastShowTraffic: Bool = false
         var lastAllowRotation: Bool = true
-        var lastMapStyle: String = "satellite"
+        var lastMapStyle: String = "standard"
         var onCellTapped: ((GridCell) -> Void)?
         var isFollowingUser: Binding<Bool>
 

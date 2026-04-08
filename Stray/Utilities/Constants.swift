@@ -11,7 +11,7 @@ enum Constants {
     static let tileReloadThrottleSeconds: Double = 1.0
 
     // Cooldown before a cell's visit count increments again (1 hour)
-    static let visitCooldownSeconds: TimeInterval = 3600.0
+    static let visitCooldownSeconds: TimeInterval = 43200.0
 
     // Heat gradient — 5 tiers, interpolated in HSB between two endpoints
     // Default: deep blue → bright green
@@ -49,7 +49,6 @@ enum Constants {
     static let showTrafficKey = "showTraffic"
     static let allowRotationKey = "allowRotation"
     static let hasCompletedPhotoScanKey = "hasCompletedPhotoScan"
-    static let showPhotoDotsKey = "showPhotoDots"
     static let mapStyleKey = "mapStyle"
 
     // Photo density gradient colors (purple/magenta spectrum)

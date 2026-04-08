@@ -22,8 +22,8 @@ private struct PhotoServiceKey: EnvironmentKey {
 // Silence Swift 6 warning — EnvironmentKey.defaultValue is accessed on MainActor in practice
 extension PhotoServiceKey: @unchecked Sendable {}
 
-private struct HealthServiceKey: EnvironmentKey {
-    static let defaultValue = HealthService()
+private struct PedometerServiceKey: EnvironmentKey {
+    static let defaultValue = PedometerService()
 }
 
 private struct StatsViewModelKey: EnvironmentKey {
@@ -51,9 +51,9 @@ extension EnvironmentValues {
         set { self[PhotoServiceKey.self] = newValue }
     }
 
-    var healthService: HealthService {
-        get { self[HealthServiceKey.self] }
-        set { self[HealthServiceKey.self] = newValue }
+    var pedometerService: PedometerService {
+        get { self[PedometerServiceKey.self] }
+        set { self[PedometerServiceKey.self] = newValue }
     }
 
     var statsViewModel: StatsViewModel {

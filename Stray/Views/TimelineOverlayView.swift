@@ -9,11 +9,11 @@ struct TimelineOverlayView: View {
     @Environment(\.gridEngine) var gridEngine
     @Environment(\.persistenceService) var persistenceService
     @Environment(\.photoService) var photoService
-    @Environment(\.healthService) var healthService
+    @Environment(\.pedometerService) var pedometerService
 
     @State private var dayPhotos: [PHAsset] = []
-    @State private var healthDaySteps: Int?
-    @State private var healthDayDistance: Double?
+    @State private var pedometerDaySteps: Int?
+    @State private var pedometerDayDistance: Double?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -47,8 +47,8 @@ struct TimelineOverlayView: View {
 
             // Stats for selected day
             if let day = timelineVM.selectedDay {
-                let displayDistance = healthDayDistance ?? day.distanceMeters
-                let displaySteps = healthDaySteps ?? day.stepCount
+                let displayDistance = pedometerDayDistance ?? day.distanceMeters
+                let displaySteps = pedometerDaySteps ?? day.stepCount
                 HStack(spacing: 20) {
                     statChip(icon: "map.fill", value: "\(day.cellsRevealed)", label: "cells")
                     statChip(icon: "figure.walk", value: formatDistance(displayDistance), label: "walked")
@@ -110,31 +110,30 @@ struct TimelineOverlayView: View {
         .padding(.bottom, 16)
         .onChange(of: timelineVM.selectedIndex) { _, _ in
             loadPhotosForSelectedDay()
-            refreshHealthForDay()
+            refreshPedometerForDay()
         }
         .onAppear {
             loadPhotosForSelectedDay()
-            refreshHealthForDay()
+            refreshPedometerForDay()
         }
     }
 
-    private func refreshHealthForDay() {
-        healthDaySteps = nil
-        healthDayDistance = nil
-        guard healthService.isAuthorized, let day = timelineVM.selectedDay else { return }
+    private func refreshPedometerForDay() {
+        pedometerDaySteps = nil
+        pedometerDayDistance = nil
+        guard pedometerService.isAvailable, let day = timelineVM.selectedDay else { return }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = .current
-        guard let dayStart = formatter.date(from: day.dateString) else { return }
-        guard let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: dayStart) else { return }
+        guard let dayStart = formatter.date(from: day.dateString),
+              let dayEnd = Calendar.current.date(byAdding: .day, value: 1, to: dayStart) else { return }
         Task {
-            async let s = healthService.steps(from: dayStart, to: dayEnd)
-            async let d = healthService.distance(from: dayStart, to: dayEnd)
+            async let s = pedometerService.steps(from: dayStart, to: dayEnd)
+            async let d = pedometerService.distance(from: dayStart, to: dayEnd)
             let (steps, dist) = await (s, d)
-            // Only use HealthKit values if they're non-zero
-            if steps > 0 { healthDaySteps = steps }
-            if dist > 0 { healthDayDistance = dist }
+            if steps > 0 { pedometerDaySteps = steps }
+            if dist > 0 { pedometerDayDistance = dist }
         }
     }
 
@@ -251,8 +250,8 @@ private struct TimelineScrubber: View {
                             DragGesture(minimumDistance: 0)
                                 .onChanged { value in
                                     isDragging = true
-                                    let fraction = max(0, min(1, value.location.x / trackWidth))
-                                    let newIndex = Int(round(fraction * CGFloat(maxIndex)))
+                                    let fraction = trackWidth > 0 ? max(0, min(1, value.location.x / trackWidth)) : 0
+                                    let newIndex = min(Int(round(fraction * CGFloat(maxIndex))), maxIndex)
                                     dragIndex = newIndex
                                     let now = Date()
                                     if newIndex != lastFiredIndex && now.timeIntervalSince(lastFireTime) >= scrubThrottleInterval {
@@ -273,8 +272,8 @@ private struct TimelineScrubber: View {
                 .frame(height: thumbSize)
                 .contentShape(Rectangle())
                 .onTapGesture { location in
-                    let fraction = max(0, min(1, location.x / trackWidth))
-                    let index = Int(round(fraction * CGFloat(maxIndex)))
+                    let fraction = trackWidth > 0 ? max(0, min(1, location.x / trackWidth)) : 0
+                    let index = min(Int(round(fraction * CGFloat(maxIndex))), maxIndex)
                     onSelect(index)
                 }
             }

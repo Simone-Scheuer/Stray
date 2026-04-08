@@ -102,12 +102,6 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             context: context
         )
         drawInspectionHighlight(cells: cells, context: context)
-        drawPhotoCounts(
-            region: region,
-            isPhotoMode: gridEngine.photoCells != nil,
-            isHeatMode: gridEngine.heatCells,
-            context: context
-        )
     }
 
     // MARK: - Aggregate LOD Level
@@ -171,7 +165,7 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             }
             if !todayPath.isEmpty {
                 context.addPath(todayPath)
-                context.setFillColor(UIColor(red: 0.3, green: 0.8, blue: 1.0, alpha: 0.55).cgColor)
+                context.setFillColor(UIColor(red: 0.3, green: 0.8, blue: 1.0, alpha: 0.28).cgColor)
                 context.fillPath()
             }
         }
@@ -239,41 +233,6 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             let cellRect = cellScreenRect(for: cell)
             context.setFillColor(UIColor.white.withAlphaComponent(0.35).cgColor)
             context.fill(cellRect)
-        }
-    }
-
-    private func drawPhotoCounts(
-        region: MKCoordinateRegion,
-        isPhotoMode: Bool,
-        isHeatMode: Bool,
-        context: CGContext
-    ) {
-        guard !isPhotoMode, !isHeatMode, let photoDots = gridEngine.photoDotsData else { return }
-        context.setBlendMode(.normal)
-        for (cell, photoCount) in photoDots {
-            let coord = cell.coordinate
-            guard coord.latitude >= region.center.latitude - region.span.latitudeDelta
-                    && coord.latitude <= region.center.latitude + region.span.latitudeDelta
-                    && coord.longitude >= region.center.longitude - region.span.longitudeDelta
-                    && coord.longitude <= region.center.longitude + region.span.longitudeDelta else {
-                continue
-            }
-            let cellRect = cellScreenRect(for: cell)
-            let fontSize = max(cellRect.width * 0.22, 6)
-            guard fontSize >= 6 else { continue }
-            let text = "\(photoCount)" as NSString
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: UIFont.systemFont(ofSize: fontSize, weight: .semibold),
-                .foregroundColor: UIColor.white.withAlphaComponent(0.55)
-            ]
-            let textSize = text.size(withAttributes: attrs)
-            let textOrigin = CGPoint(
-                x: cellRect.maxX - textSize.width - cellRect.width * 0.06,
-                y: cellRect.maxY - textSize.height - cellRect.height * 0.04
-            )
-            UIGraphicsPushContext(context)
-            text.draw(at: textOrigin, withAttributes: attrs)
-            UIGraphicsPopContext()
         }
     }
 

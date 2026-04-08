@@ -36,6 +36,7 @@ struct CellPhotosView: View {
                     ForEach(assets.prefix(6), id: \.localIdentifier) { asset in
                         thumbnailView(for: asset)
                             .onTapGesture {
+                                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                                 loadFullImage(for: asset)
                             }
                     }
@@ -155,6 +156,18 @@ struct CellPhotosView: View {
                                 Text("Unable to load photo")
                                     .font(.callout)
                                     .foregroundStyle(.secondary)
+                                Button {
+                                    if let asset = selectedAsset {
+                                        loadFullImage(for: asset)
+                                    }
+                                } label: {
+                                    Text("Retry")
+                                        .font(.callout.weight(.medium))
+                                        .foregroundStyle(.white)
+                                        .padding(.horizontal, 20)
+                                        .padding(.vertical, 10)
+                                        .background(.white.opacity(0.2), in: Capsule())
+                                }
                             }
                         } else {
                             ProgressView()
@@ -182,6 +195,8 @@ struct CellPhotosView: View {
                 .sheet(isPresented: $showShareSheet) {
                     if let image = selectedImage {
                         ShareSheet(items: [image])
+                    } else {
+                        Color.clear.onAppear { showShareSheet = false }
                     }
                 }
             }

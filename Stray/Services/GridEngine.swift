@@ -21,7 +21,6 @@ final class GridEngine {
     private(set) var timelineCells: [GridCell: Int]? = nil
     private(set) var photoCells: [GridCell: Int]? = nil
     private(set) var heatCells: Bool = false
-    private(set) var photoDotsData: [GridCell: Int]? = nil
     private(set) var dayHighlightCells: Set<GridCell>? = nil
     private(set) var dayNewCells: Set<GridCell>? = nil
     private(set) var todayVisitedCells: Set<GridCell> = []
@@ -57,6 +56,7 @@ final class GridEngine {
             revealedCells[cell] = 1
             lastVisitTimes[cell] = now
             addToSpatialIndex(cell)
+            if recentlyRevealedCells.count > 50 { pruneRecentlyRevealed() }
             recentlyRevealedCells[cell] = now
             markDirty()
             scheduleClearingAnimation()
@@ -249,19 +249,6 @@ final class GridEngine {
 
     func exitPhotoMode() {
         photoCells = nil
-        renderGeneration += 1
-    }
-
-    // MARK: - Photo Dots
-
-    func updatePhotoDots(_ data: [GridCell: Int]) {
-        photoDotsData = data
-        renderGeneration += 1
-    }
-
-    func clearPhotoDots() {
-        guard photoDotsData != nil else { return }
-        photoDotsData = nil
         renderGeneration += 1
     }
 

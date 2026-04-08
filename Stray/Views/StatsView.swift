@@ -7,11 +7,11 @@ struct StatsView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.statsViewModel) var statsViewModel
     @Environment(\.photoService) var photoService
-    @Environment(\.healthService) var healthService
+    @Environment(\.pedometerService) var pedometerService
     @Environment(\.dismiss) private var dismiss
 
-    @State private var healthTodaySteps: Int?
-    @State private var healthTodayDistance: Double?
+    @State private var pedometerTodaySteps: Int?
+    @State private var pedometerTodayDistance: Double?
 
     var body: some View {
         NavigationStack {
@@ -36,7 +36,7 @@ struct StatsView: View {
             }
             .onAppear {
                 statsViewModel.refresh(context: modelContext)
-                refreshHealthStats()
+                refreshPedometerStats()
             }
         }
     }
@@ -65,8 +65,8 @@ struct StatsView: View {
     // MARK: - Today
 
     private var todaySection: some View {
-        let displayDistance = healthTodayDistance.map { formatDistance($0) } ?? statsViewModel.todayDistance
-        let displaySteps = healthTodaySteps.map { formattedCount($0) } ?? statsViewModel.todaySteps
+        let displayDistance = pedometerTodayDistance.map { formatDistance($0) } ?? statsViewModel.todayDistance
+        let displaySteps = pedometerTodaySteps.map { formattedCount($0) } ?? statsViewModel.todaySteps
         return VStack(alignment: .leading, spacing: 16) {
             Text("Today")
                 .font(.headline)
@@ -193,14 +193,14 @@ struct StatsView: View {
         return formatter.string(from: NSNumber(value: count)) ?? "\(count)"
     }
 
-    private func refreshHealthStats() {
-        guard healthService.isAuthorized else { return }
+    private func refreshPedometerStats() {
+        guard pedometerService.isAvailable else { return }
         Task {
-            async let steps = healthService.todaySteps()
-            async let dist = healthService.todayDistance()
+            async let steps = pedometerService.todaySteps()
+            async let dist = pedometerService.todayDistance()
             let (s, d) = await (steps, dist)
-            healthTodaySteps = s
-            healthTodayDistance = d
+            if s > 0 { pedometerTodaySteps = s }
+            if d > 0 { pedometerTodayDistance = d }
         }
     }
 }

@@ -6,15 +6,13 @@ struct SettingsView: View {
     @Environment(\.locationService) var locationService
     @Environment(\.gridEngine) var gridEngine
     @Environment(\.photoService) var photoService
-    @Environment(\.healthService) var healthService
     @Environment(\.dismiss) private var dismiss
     @State private var showDemoConfirm = false
     @AppStorage(Constants.showMapLabelsKey) private var showMapLabels = false
     @AppStorage(Constants.mutedMapStyleKey) private var mutedMapStyle = true
     @AppStorage(Constants.showTrafficKey) private var showTraffic = false
     @AppStorage(Constants.allowRotationKey) private var allowRotation = true
-    @AppStorage(Constants.showPhotoDotsKey) private var showPhotoDots = false
-    @AppStorage(Constants.mapStyleKey) private var mapStyle = "satellite"
+    @AppStorage(Constants.mapStyleKey) private var mapStyle = "standard"
 
     var body: some View {
         NavigationStack {
@@ -23,9 +21,6 @@ struct SettingsView: View {
                 mapSection
                 locationSection
                 photoSection
-                if healthService.isAvailable {
-                    healthSection
-                }
                 #if DEBUG
                 debugSection
                 #endif
@@ -76,9 +71,6 @@ struct SettingsView: View {
             }
             Toggle("Show Traffic", isOn: $showTraffic)
             Toggle("Allow Rotation", isOn: $allowRotation)
-            if photoService.isAuthorized {
-                Toggle("Show Photo Markers", isOn: $showPhotoDots)
-            }
         } header: {
             Text("Map")
         } footer: {
@@ -92,11 +84,28 @@ struct SettingsView: View {
 
     private var locationSection: some View {
         Section {
-            HStack {
-                Text("Permission")
-                Spacer()
-                Text(permissionLabel)
-                    .foregroundStyle(.secondary)
+            if locationService.authorizationStatus == .authorizedWhenInUse || locationService.authorizationStatus == .authorizedAlways {
+                Button {
+                    openSystemSettings()
+                } label: {
+                    HStack {
+                        Text("Permission")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text(permissionLabel)
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "arrow.up.forward.app")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } else {
+                HStack {
+                    Text("Permission")
+                    Spacer()
+                    Text(permissionLabel)
+                        .foregroundStyle(.secondary)
+                }
             }
 
             if locationService.authorizationStatus == .authorizedWhenInUse {
@@ -107,9 +116,7 @@ struct SettingsView: View {
 
             if locationService.authorizationStatus == .denied || locationService.authorizationStatus == .restricted {
                 Button("Open Settings") {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
-                    }
+                    openSystemSettings()
                 }
             }
         } header: {
@@ -117,6 +124,8 @@ struct SettingsView: View {
         } footer: {
             if locationService.authorizationStatus == .authorizedWhenInUse {
                 Text("\"Always\" lets Stray track in the background so you never miss a step.")
+            } else if locationService.authorizationStatus == .authorizedAlways {
+                Text("Tap to change in System Settings.")
             }
         }
     }
@@ -125,24 +134,48 @@ struct SettingsView: View {
 
     private var photoSection: some View {
         Section {
-            HStack {
-                Text("Permission")
-                Spacer()
-                Text(photoPermissionLabel)
-                    .foregroundStyle(.secondary)
-            }
-
             if photoService.isAuthorized {
-                Button("Rescan Photo Library") {
-                    photoService.scanLibrary()
+                Button {
+                    openSystemSettings()
+                } label: {
+                    HStack {
+                        Text("Permission")
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Text(photoPermissionLabel)
+                            .foregroundStyle(.secondary)
+                        Image(systemName: "arrow.up.forward.app")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } else {
+                HStack {
+                    Text("Permission")
+                    Spacer()
+                    Text(photoPermissionLabel)
+                        .foregroundStyle(.secondary)
                 }
             }
 
-            if photoService.authorizationStatus == .denied {
-                Button("Open Settings") {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
+            if photoService.isAuthorized {
+                Button {
+                    photoService.scanLibrary()
+                } label: {
+                    HStack {
+                        Text("Rescan Photo Library")
+                        if photoService.isScanning {
+                            Spacer()
+                            ProgressView()
+                        }
                     }
+                }
+                .disabled(photoService.isScanning)
+            }
+
+            if photoService.authorizationStatus == .denied || photoService.authorizationStatus == .restricted {
+                Button("Open Settings") {
+                    openSystemSettings()
                 }
             }
 
@@ -166,29 +199,6 @@ struct SettingsView: View {
         case .authorized: return "Full Access"
         case .limited: return "Limited"
         @unknown default: return "Unknown"
-        }
-    }
-
-    // MARK: - Health
-
-    private var healthSection: some View {
-        Section {
-            HStack {
-                Text("Permission")
-                Spacer()
-                Text(healthService.isAuthorized ? "Authorized" : "Not Set")
-                    .foregroundStyle(.secondary)
-            }
-
-            if !healthService.isAuthorized {
-                Button("Allow Health Access") {
-                    Task { let _ = await healthService.requestAuthorization() }
-                }
-            }
-        } header: {
-            Text("Health")
-        } footer: {
-            Text("Stray reads steps and distance from Apple Health to show accurate session stats.")
         }
     }
 
@@ -261,6 +271,12 @@ struct SettingsView: View {
         case .authorizedWhenInUse: return "When In Use"
         case .authorizedAlways: return "Always"
         @unknown default: return "Unknown"
+        }
+    }
+
+    private func openSystemSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
         }
     }
 }

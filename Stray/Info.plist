@@ -18,14 +18,16 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>Stray uses the camera so you can capture moments during exploration.</string>
-	<key>NSHealthShareUsageDescription</key>
-	<string>Stray uses Health data to show accurate step counts and walking distance. You can skip this — we'll estimate from GPS instead.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Always-on location lets Stray track your exploration even when the app is in the background, so you never miss a step.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Stray uses your location to reveal the parts of your world you've explored.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>Stray uses motion data to show accurate step counts and walking distance in your stats.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Stray saves photos you take during exploration to your camera roll.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
@@ -36,6 +38,8 @@
 	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
+	<key>UIRequiresFullScreen</key>
+	<true/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
