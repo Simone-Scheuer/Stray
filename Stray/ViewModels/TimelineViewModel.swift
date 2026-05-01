@@ -22,14 +22,19 @@ final class TimelineViewModel {
 
     var formattedDate: String {
         guard let day = selectedDay else { return "" }
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        guard let date = formatter.date(from: day.dateString) else { return day.dateString }
-        let display = DateFormatter()
-        display.dateStyle = .medium
-        display.timeStyle = .none
-        return display.string(from: date)
+        let parser = DateFormatter()
+        parser.dateFormat = "yyyy-MM-dd"
+        parser.locale = Locale(identifier: "en_US_POSIX")
+        guard let date = parser.date(from: day.dateString) else { return day.dateString }
+
+        let month = date.formatted(.dateTime.month(.wide))
+        let dayNumber = Calendar.current.component(.day, from: date)
+        let year = Calendar.current.component(.year, from: date)
+        let ordinalFormatter = NumberFormatter()
+        ordinalFormatter.numberStyle = .ordinal
+        let ordinalDay = ordinalFormatter.string(from: NSNumber(value: dayNumber)) ?? "\(dayNumber)"
+
+        return "the \(ordinalDay) of \(month), \(year)"
     }
 
     func load(persistence: PersistenceService) {
@@ -102,14 +107,14 @@ final class TimelineViewModel {
         gridEngine.exitTimeline()
     }
 
-    /// Abbreviated label for a day pill in the scrubber (e.g. "Mar 1")
+    /// Label for a day pill in the scrubber (e.g. "March 1")
     func pillLabel(for day: DailySummary) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         formatter.locale = Locale(identifier: "en_US_POSIX")
         guard let date = formatter.date(from: day.dateString) else { return day.dateString }
         let display = DateFormatter()
-        display.dateFormat = "MMM d"
+        display.dateFormat = "MMMM d"
         return display.string(from: date)
     }
 }

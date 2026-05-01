@@ -69,21 +69,25 @@ struct HSBColor {
 /// Pre-computed heat gradient colors for fast lookup in the renderer.
 /// Call `HeatGradient.colors()` to get the 5-tier array.
 enum HeatGradient {
-    /// Returns 5 UIColors interpolated between the gradient endpoints.
+    /// Returns 5 UIColors covering the visit-frequency tiers.
     /// Index 0 = tier 1 (1 visit), index 4 = tier 5 (21+ visits).
+    /// Uses hand-picked RGB stops to avoid the green/cyan band that an
+    /// HSB blue→gold interpolation would otherwise pass through.
     static func colors() -> [UIColor] {
-        let start = Constants.gradientStart
-        let end = Constants.gradientEnd
-        let n = Constants.heatTiers
+        let stops: [(r: CGFloat, g: CGFloat, b: CGFloat)] = [
+            (0.32, 0.48, 0.78),  // tier 1 — cool blue (1 visit)
+            (0.45, 0.55, 0.70),  // tier 2 — blue-grey
+            (0.65, 0.55, 0.50),  // tier 3 — warm clay
+            (0.85, 0.65, 0.35),  // tier 4 — amber
+            (0.92, 0.72, 0.28),  // tier 5 — bright gold (home base)
+        ]
         let (alphaLow, alphaHigh) = Constants.heatAlphaRange
+        let n = stops.count
 
-        return (0..<n).map { i in
+        return stops.enumerated().map { i, stop in
             let t = n == 1 ? 0.0 : CGFloat(i) / CGFloat(n - 1)
-            let h = lerp(start.h, end.h, t) / 360.0
-            let s = lerp(start.s, end.s, t)
-            let b = lerp(start.b, end.b, t)
             let alpha = lerp(alphaLow, alphaHigh, t)
-            return UIColor(hue: h, saturation: s, brightness: b, alpha: alpha)
+            return UIColor(red: stop.r, green: stop.g, blue: stop.b, alpha: alpha)
         }
     }
 

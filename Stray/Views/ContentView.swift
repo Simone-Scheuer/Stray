@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import CoreLocation
 
 struct ContentView: View {
     @Environment(\.gridEngine) var gridEngine
@@ -30,10 +31,27 @@ struct ContentView: View {
     @State private var showHeatMode = false
     @State private var showSplash = true
 
+    @State private var currentCity: String?
+
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some View {
         mainContent
+            .overlay(alignment: .bottomTrailing) { lensButtonBar }
             .overlay(alignment: .bottom) { recenterButton }
             .animation(.easeInOut(duration: 0.25), value: isFollowingUser)
+            .animation(.easeInOut(duration: 0.25), value: showHeatMode)
+            .animation(.easeInOut(duration: 0.25), value: showPhotoMode)
+            .onChange(of: locationService.currentLocation == nil) { wasNil, isNil in
+                if wasNil && !isNil {
+                    Task { await updateCurrentCity() }
+                }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    Task { await updateCurrentCity() }
+                }
+            }
             .overlay(alignment: .bottom) { emptyTimelineOverlay }
             .animation(.easeInOut(duration: 0.3), value: showEmptyTimeline)
             .sheet(isPresented: $showStats) {
@@ -65,6 +83,10 @@ struct ContentView: View {
                 #if DEBUG && targetEnvironment(simulator)
                 gridEngine.addTestCells()
                 #endif
+                // Safety net: if location is already populated when the view appears
+                // (cached fix from prior launch), the .onChange(of: locationService.currentLocation == nil)
+                // won't fire because the bool never transitions. Run once on appear too.
+                Task { await updateCurrentCity() }
             }
             .overlay { splashOverlay }
             .animation(.easeOut(duration: 0.8), value: showSplash)
@@ -85,6 +107,7 @@ struct ContentView: View {
                 showTraffic: showTraffic,
                 allowRotation: allowRotation,
                 mapStyle: mapStyle,
+                isTimelineActive: showTimeline,
                 isFollowingUser: $isFollowingUser,
                 onCellTapped: { cell in
                     guard !showTimeline else { return }
@@ -96,13 +119,15 @@ struct ContentView: View {
             .ignoresSafeArea()
 
             VStack {
-                if !showTimeline {
-                    actionButtonBar
-                    modeBadges
+                HStack(alignment: .top) {
+                    identityHeader
                     Spacer()
-                } else {
-                    Spacer()
+                    if !showTimeline {
+                        navButtonBar
+                            .transition(.opacity)
+                    }
                 }
+                Spacer()
             }
 
             if showTimeline {
@@ -115,73 +140,84 @@ struct ContentView: View {
                         .environment(\.gridEngine, gridEngine)
                         .environment(\.persistenceService, persistenceService)
                 }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
     }
 
-    private var actionButtonBar: some View {
-        HStack {
-            Spacer()
+    private var identityHeader: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            HStack(alignment: .lastTextBaseline, spacing: 8) {
+                Text("stray")
+                    .font(.system(size: 24, weight: .regular, design: .serif).italic())
+                    .foregroundStyle(.white.opacity(0.85))
+                if let city = currentCity {
+                    Text(city.uppercased())
+                        .font(.system(size: 11, weight: .medium, design: .serif))
+                        .tracking(1.2)
+                        .foregroundStyle(.white.opacity(0.55))
+                }
+            }
+            Text(formattedDate)
+                .font(.system(size: 11, weight: .regular, design: .serif).italic())
+                .foregroundStyle(.white.opacity(0.55))
+        }
+        .padding(.leading, 16)
+        .padding(.top, 14)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var navButtonBar: some View {
+        HStack(spacing: 14) {
+            navIconButton(systemName: "chart.bar", label: "View statistics") {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                showStats = true
+            }
+            navIconButton(systemName: "gearshape", label: "Settings") {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                showSettings = true
+            }
+        }
+        .padding(.trailing, 16)
+        .padding(.top, 14)
+    }
+
+    @ViewBuilder
+    private var lensButtonBar: some View {
+        if !showTimeline {
             HStack(spacing: 12) {
-                iconButton(systemName: "clock.arrow.circlepath", label: "View timeline") {
+                lensIconButton(
+                    systemName: "clock.arrow.circlepath",
+                    isActive: false,
+                    activeTint: Color(red: 0.85, green: 0.65, blue: 0.35),
+                    label: "View timeline"
+                ) {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
                     enterTimeline()
                 }
-                iconButton(
-                    systemName: showHeatMode ? "flame.fill" : "flame",
-                    tint: showHeatMode ? .orange.opacity(0.7) : nil,
-                    label: showHeatMode ? "Exit heat map" : "View heat map"
-                ) {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    if showHeatMode { exitHeatMode() } else { enterHeatMode() }
-                }
                 if photoService.isAuthorized {
-                    iconButton(
+                    lensIconButton(
                         systemName: showPhotoMode ? "photo.fill" : "photo",
-                        tint: showPhotoMode ? .purple.opacity(0.7) : nil,
+                        isActive: showPhotoMode,
+                        activeTint: Color(red: 0.7, green: 0.55, blue: 0.85),
                         label: showPhotoMode ? "Exit photo mode" : "View photo density"
                     ) {
                         UIImpactFeedbackGenerator(style: .light).impactOccurred()
                         if showPhotoMode { exitPhotoMode() } else { enterPhotoMode() }
                     }
                 }
-                iconButton(systemName: "chart.bar", label: "View statistics") {
+                lensIconButton(
+                    systemName: showHeatMode ? "flame.fill" : "flame",
+                    isActive: showHeatMode,
+                    activeTint: Color(red: 0.85, green: 0.65, blue: 0.35),
+                    label: showHeatMode ? "Exit heat map" : "View heat map"
+                ) {
                     UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    showStats = true
-                }
-                iconButton(systemName: "gearshape", label: "Settings") {
-                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                    showSettings = true
+                    if showHeatMode { exitHeatMode() } else { enterHeatMode() }
                 }
             }
             .padding(.trailing, 16)
-            .padding(.top, 12)
-        }
-    }
-
-    @ViewBuilder
-    private var modeBadges: some View {
-        if showHeatMode {
-            HStack {
-                Image(systemName: "flame.fill")
-                Text("Heat Map")
-            }
-            .font(.caption.weight(.medium))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(.orange.opacity(0.7), in: Capsule())
-        }
-        if showPhotoMode {
-            HStack {
-                Image(systemName: "photo.fill")
-                Text("Photos")
-            }
-            .font(.caption.weight(.medium))
-            .foregroundStyle(.white)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(.purple.opacity(0.7), in: Capsule())
+            .padding(.bottom, 40)
         }
     }
 
@@ -192,10 +228,11 @@ struct ContentView: View {
                 isFollowingUser = true
             } label: {
                 Image(systemName: "location.fill")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.white)
-                    .frame(width: 36, height: 36)
-                    .background(.black.opacity(0.6), in: Circle())
+                    .font(.system(size: 16, weight: .light))
+                    .foregroundStyle(.white.opacity(0.78))
+                    .frame(width: 32, height: 32)
+                    .contentShape(Rectangle())
+                    .shadow(color: .black.opacity(0.55), radius: 3, y: 1)
             }
             .accessibilityLabel("Recenter map on your location")
             .padding(.bottom, 40)
@@ -206,7 +243,7 @@ struct ContentView: View {
     @ViewBuilder
     private var emptyTimelineOverlay: some View {
         if showEmptyTimeline {
-            Text("Start exploring to build your timeline")
+            Text("Walk to build your timeline.")
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.9))
                 .padding(.horizontal, 14)
@@ -220,7 +257,7 @@ struct ContentView: View {
     @ViewBuilder
     private var persistenceErrorOverlay: some View {
         if showPersistenceError && !showTimeline {
-            Text("Unable to save exploration data")
+            Text("Couldn't save your data.")
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.9))
                 .padding(.horizontal, 14)
@@ -238,7 +275,7 @@ struct ContentView: View {
                 Image(systemName: "location.slash")
                     .font(.system(size: 32))
                     .foregroundStyle(.white.opacity(0.7))
-                Text("Location access is needed to reveal the map")
+                Text("Stray needs location to reveal the map.")
                     .font(.callout)
                     .foregroundStyle(.white.opacity(0.9))
                     .multilineTextAlignment(.center)
@@ -333,25 +370,76 @@ struct ContentView: View {
             return
         }
         timelineVM.applyDay(gridEngine: gridEngine, persistence: ps)
-        showTimeline = true
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.85)) {
+            showTimeline = true
+        }
     }
 
     private func exitTimeline() {
         timelineVM.exit(gridEngine: gridEngine)
-        showTimeline = false
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.88)) {
+            showTimeline = false
+        }
     }
 
     // MARK: - Navigation Buttons
 
-    private func iconButton(systemName: String, tint: Color? = nil, label: String, action: @escaping () -> Void) -> some View {
+    /// Top-right nav icons — chromeless glyphs floating on the map.
+    /// Drop shadow for legibility against bright cells.
+    private func navIconButton(systemName: String, label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(.white)
-                .frame(width: 36, height: 36)
-                .background(tint ?? .black.opacity(0.6), in: Circle())
+                .font(.system(size: 16, weight: .light))
+                .foregroundStyle(.white.opacity(0.78))
+                .frame(width: 32, height: 32)
+                .contentShape(Rectangle())
+                .shadow(color: .black.opacity(0.55), radius: 3, y: 1)
         }
         .accessibilityLabel(label)
+    }
+
+    /// Bottom-right lens toggles — circles restored so they read as buttons, not icons.
+    /// Darker, more restrained than the original chrome.
+    /// Active: muted brand-tinted symbol on the same dark circle + glow halo.
+    private func lensIconButton(systemName: String, isActive: Bool, activeTint: Color, label: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: 14, weight: isActive ? .regular : .light))
+                .foregroundStyle(isActive ? activeTint : .white.opacity(0.7))
+                .frame(width: 38, height: 38)
+                .background(Circle().fill(Color.black.opacity(0.55)))
+                .overlay(Circle().stroke(Color.white.opacity(isActive ? 0 : 0.05), lineWidth: 0.5))
+                .shadow(color: isActive ? activeTint.opacity(0.5) : .clear, radius: 14)
+        }
+        .accessibilityLabel(label)
+    }
+
+    // MARK: - Identity Header Helpers
+
+    private var formattedDate: String {
+        let now = Date()
+        let weekday = now.formatted(.dateTime.weekday(.wide))
+        let month = now.formatted(.dateTime.month(.wide))
+        let day = Calendar.current.component(.day, from: now)
+        let ordinalFormatter = NumberFormatter()
+        ordinalFormatter.numberStyle = .ordinal
+        let ordinalDay = ordinalFormatter.string(from: NSNumber(value: day)) ?? "\(day)"
+        return "\(weekday), the \(ordinalDay) of \(month)"
+    }
+
+    private func updateCurrentCity() async {
+        guard let coord = locationService.currentLocation else { return }
+        let geocoder = CLGeocoder()
+        do {
+            let placemarks = try await geocoder.reverseGeocodeLocation(
+                CLLocation(latitude: coord.latitude, longitude: coord.longitude)
+            )
+            if let city = placemarks.first?.locality {
+                await MainActor.run { self.currentCity = city }
+            }
+        } catch {
+            // Silent — city stays nil; will retry on next bucket change
+        }
     }
 }
 

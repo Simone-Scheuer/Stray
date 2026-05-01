@@ -8,6 +8,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     var showTraffic: Bool = false
     var allowRotation: Bool = true
     var mapStyle: String = "standard"
+    var isTimelineActive: Bool = false
     @Binding var isFollowingUser: Bool
     var onCellTapped: ((GridCell) -> Void)?
 
@@ -31,7 +32,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         )
 
         mapView.accessibilityLabel = "Exploration map"
-        mapView.layoutMargins = UIEdgeInsets(top: 8, left: 8, bottom: 4, right: 8)
+        mapView.layoutMargins = UIEdgeInsets(top: 8, left: 8, bottom: 45, right: 8)
 
         let fogOverlay = FogOverlay()
         mapView.addOverlay(fogOverlay, level: .aboveLabels)
@@ -91,6 +92,17 @@ struct MapViewRepresentable: UIViewRepresentable {
             context.coordinator.lastAllowRotation = allowRotation
             uiView.isRotateEnabled = allowRotation
         }
+
+        if isTimelineActive != context.coordinator.lastTimelineActive {
+            context.coordinator.lastTimelineActive = isTimelineActive
+            // Push the Apple Maps / Legal attribution above the timeline panel.
+            // ~220pt covers the panel's typical height (with photo strip can grow ~270);
+            // the label still renders just above the panel rather than under it.
+            let bottomInset: CGFloat = isTimelineActive ? 220 : 45
+            UIView.animate(withDuration: 0.3) {
+                uiView.layoutMargins = UIEdgeInsets(top: 8, left: 8, bottom: bottomInset, right: 8)
+            }
+        }
     }
 
     static func buildMapConfig(style: String, mutedMapStyle: Bool, showTraffic: Bool, showMapLabels: Bool) -> MKMapConfiguration {
@@ -124,6 +136,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         var lastShowTraffic: Bool = false
         var lastAllowRotation: Bool = true
         var lastMapStyle: String = "standard"
+        var lastTimelineActive: Bool = false
         var onCellTapped: ((GridCell) -> Void)?
         var isFollowingUser: Binding<Bool>
 

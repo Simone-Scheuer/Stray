@@ -83,9 +83,9 @@ final class LocationService: NSObject, CLLocationManagerDelegate {
     }
 
     func startTracking() {
-        // Always refresh the background session so it survives app relaunch
-        backgroundSession?.invalidate()
-        backgroundSession = CLBackgroundActivitySession()
+        if backgroundSession == nil {
+            backgroundSession = CLBackgroundActivitySession()
+        }
 
         guard !isTracking else { return }
         isTracking = true

@@ -109,3 +109,21 @@ No unit test framework in MVP — validate manually on device:
 - Start Stray → compass points toward dark/cool areas
 - Kill app, relaunch → all data persists
 - Second device with same iCloud → data syncs
+
+## Project Status Docs
+
+The `docs/` folder tracks current state across three concerns:
+- [docs/design.md](docs/design.md) — visual identity, per-screen status, brand decisions, decisions log
+- [docs/release.md](docs/release.md) — version history, in-flight release, backlog, release notes drafting
+- [docs/integrations.md](docs/integrations.md) — Apple services, signing, entitlements, known integration gaps
+
+**After substantive work sessions, update the relevant doc.** Treat them as a running diary so the next session — or another collaborator — can pick up state without re-reading the whole repo. The biggest risk is staleness; this rule is the antidote.
+
+When to update which:
+- `design.md` — visual/UX/brand changes, new design decisions, screen-status shifts, type-system or palette tweaks. Add to the decisions log with a date and a one-line *why* whenever a non-trivial design call is made.
+- `release.md` — version bumps, scope additions to the in-flight release, ship/TestFlight events, backlog reordering, release-note drafts.
+- `integrations.md` — Apple service changes, signing or cert updates, permission additions or removals, integration gaps discovered or closed, workflow changes (Archive → TestFlight → App Store).
+
+Date entries when adding to logs (use the current date — check the conversation context if unsure).
+
+A "substantive session" means: ≥1 file changed, ≥1 design call made, or any release/integration event. A typo fix doesn't qualify; a layout refactor does.

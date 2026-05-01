@@ -17,55 +17,31 @@ struct TimelineOverlayView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // Header: exit + progress + date
-            HStack {
-                Button(action: onExit) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
-                }
-                .accessibilityLabel("Exit timeline")
+            header
+                .padding(.horizontal, 24)
+                .padding(.top, 18)
+                .padding(.bottom, 14)
 
-                Spacer()
-
-                VStack(spacing: 2) {
-                    Text(timelineVM.formattedDate)
-                        .font(.headline)
-                    Text(timelineVM.progressLabel)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                // Spacer for symmetry with exit button
-                Color.clear.frame(width: 28, height: 28)
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 16)
-            .padding(.bottom, 10)
-
-            // Stats for selected day
             if let day = timelineVM.selectedDay {
                 let displayDistance = pedometerDayDistance ?? day.distanceMeters
                 let displaySteps = pedometerDaySteps ?? day.stepCount
-                HStack(spacing: 20) {
-                    statChip(icon: "map.fill", value: "\(day.cellsRevealed)", label: "cells")
-                    statChip(icon: "figure.walk", value: formatDistance(displayDistance), label: "walked")
-                    statChip(icon: "shoeprints.fill", value: "\(displaySteps)", label: "steps")
-                }
-                .padding(.bottom, 6)
 
-                // Day journey highlight stats (from CellVisit journal)
+                HStack(alignment: .top, spacing: 28) {
+                    timelineStat(value: "\(day.cellsRevealed)", label: day.cellsRevealed == 1 ? "cell" : "cells")
+                    timelineStat(value: formatDistance(displayDistance), label: "walked")
+                    timelineStat(value: "\(displaySteps)", label: "steps")
+                }
+                .padding(.horizontal, 24)
+                .padding(.bottom, 8)
+
                 if timelineVM.dayCellCount > 0 {
-                    Text("\(timelineVM.dayCellCount) visited · \(timelineVM.dayNewCellCount) new")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .padding(.bottom, 10)
+                    Text("\(timelineVM.dayCellCount) visited  ·  \(timelineVM.dayNewCellCount) new")
+                        .font(.system(size: 12, weight: .regular, design: .serif))
+                        .foregroundStyle(.white.opacity(0.5))
+                        .padding(.bottom, 12)
                 }
             }
 
-            // Photo strip for selected day
             if !dayPhotos.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
@@ -81,12 +57,11 @@ struct TimelineOverlayView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal, 24)
                 }
-                .padding(.bottom, 10)
+                .padding(.bottom, 12)
             }
 
-            // Timeline scrubber
             if timelineVM.activeDays.count > 1 {
                 TimelineScrubber(
                     dayCount: timelineVM.activeDays.count,
@@ -100,12 +75,17 @@ struct TimelineOverlayView: View {
                         timelineVM.selectIndex(index, gridEngine: gridEngine, persistence: ps)
                     }
                 )
-                .padding(.horizontal, 20)
-                .padding(.bottom, 8)
+                .padding(.horizontal, 24)
+                .padding(.bottom, 14)
             }
         }
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(StrayPalette.sheetBackground.opacity(0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.05), lineWidth: 0.5)
+        )
+        .shadow(color: .black.opacity(0.5), radius: 20, y: 6)
         .padding(.horizontal, 12)
         .padding(.bottom, 16)
         .onChange(of: timelineVM.selectedIndex) { _, _ in
@@ -117,6 +97,60 @@ struct TimelineOverlayView: View {
             refreshPedometerForDay()
         }
     }
+
+    // MARK: - Header
+
+    private var header: some View {
+        HStack(alignment: .center) {
+            Button(action: onExit) {
+                Image(systemName: "xmark")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .frame(width: 26, height: 26)
+                    .background(Color.white.opacity(0.08), in: Circle())
+            }
+            .accessibilityLabel("Exit timeline")
+
+            Spacer()
+
+            VStack(spacing: 3) {
+                Text(timelineVM.formattedDate)
+                    .font(.system(size: 20, weight: .regular, design: .serif).italic())
+                    .foregroundStyle(.white.opacity(0.92))
+                    .lineLimit(1)
+                    .multilineTextAlignment(.center)
+                    .minimumScaleFactor(0.75)
+                Text(timelineVM.progressLabel.uppercased())
+                    .font(.system(size: 10, weight: .medium, design: .serif))
+                    .tracking(1.4)
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+
+            Spacer()
+
+            Color.clear.frame(width: 26, height: 26)
+        }
+    }
+
+    // MARK: - Stat Component
+
+    private func timelineStat(value: String, label: String) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 26, weight: .regular, design: .serif).italic())
+                .foregroundStyle(.white.opacity(0.92))
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            Text(label)
+                .font(.system(size: 11, weight: .regular, design: .serif))
+                .foregroundStyle(.white.opacity(0.5))
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(value) \(label)")
+    }
+
+    // MARK: - Helpers
 
     private func refreshPedometerForDay() {
         pedometerDaySteps = nil
@@ -144,16 +178,6 @@ struct TimelineOverlayView: View {
         }
         dayPhotos = photoService.photosForDate(day.dateString)
     }
-
-    private func statChip(icon: String, value: String, label: String) -> some View {
-        VStack(spacing: 2) {
-            Label(value, systemImage: icon)
-                .font(.subheadline.weight(.semibold))
-            Text(label)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-        }
-    }
 }
 
 // MARK: - Photo Thumbnail
@@ -178,7 +202,7 @@ private struct TimelinePhotoThumbnail: View {
                 }
             }
             .frame(width: 52, height: 52)
-            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         }
         .onAppear {
             photoService.loadThumbnail(for: asset, size: CGSize(width: 52, height: 52)) { loaded in
@@ -201,16 +225,15 @@ private struct TimelineScrubber: View {
     @State private var lastFiredIndex: Int = -1
     @State private var lastFireTime: Date = .distantPast
 
-    private let trackHeight: CGFloat = 4
-    private let thumbSize: CGFloat = 20
+    private let trackHeight: CGFloat = 3
+    private let thumbSize: CGFloat = 18
     private let scrubThrottleInterval: TimeInterval = 0.1
 
     var body: some View {
-        VStack(spacing: 6) {
-            // Date label for current position
+        VStack(spacing: 8) {
             Text(labelForIndex(isDragging ? dragIndex : selectedIndex))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white)
+                .font(.system(size: 11, weight: .regular, design: .serif).italic())
+                .foregroundStyle(.white.opacity(0.65))
                 .animation(.none, value: isDragging ? dragIndex : selectedIndex)
 
             GeometryReader { geo in
@@ -218,31 +241,27 @@ private struct TimelineScrubber: View {
                 let maxIndex = max(dayCount - 1, 1)
 
                 ZStack(alignment: .leading) {
-                    // Track background
                     Capsule()
-                        .fill(Color.white.opacity(0.15))
+                        .fill(Color.white.opacity(0.12))
                         .frame(height: trackHeight)
 
-                    // Filled portion
                     let currentIndex = isDragging ? dragIndex : selectedIndex
                     let fillFraction = CGFloat(currentIndex) / CGFloat(maxIndex)
                     Capsule()
-                        .fill(Color.white.opacity(0.4))
+                        .fill(Color.white.opacity(0.35))
                         .frame(width: max(trackHeight, fillFraction * trackWidth), height: trackHeight)
 
-                    // Tick marks at month boundaries
                     ForEach(monthTickIndices(), id: \.self) { index in
                         let x = CGFloat(index) / CGFloat(maxIndex) * trackWidth
                         Circle()
-                            .fill(Color.white.opacity(0.3))
-                            .frame(width: 4, height: 4)
+                            .fill(Color.white.opacity(0.25))
+                            .frame(width: 3, height: 3)
                             .position(x: x, y: thumbSize / 2)
                     }
 
-                    // Thumb
                     let thumbX = CGFloat(isDragging ? dragIndex : selectedIndex) / CGFloat(maxIndex) * trackWidth
                     Circle()
-                        .fill(.white)
+                        .fill(.white.opacity(0.92))
                         .frame(width: thumbSize, height: thumbSize)
                         .shadow(color: .black.opacity(0.3), radius: 3, y: 1)
                         .position(x: thumbX, y: thumbSize / 2)

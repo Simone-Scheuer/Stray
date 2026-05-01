@@ -131,7 +131,11 @@ struct StrayApp: App {
                 persistence.detectCity(for: cell, at: coordinate)
             }
 
-            persistence.save()
+            if isNew {
+                persistence.save()
+            } else {
+                persistence.scheduleSave()
+            }
         }
 
         let photo = PhotoService()
@@ -200,6 +204,9 @@ struct StrayApp: App {
                     deduplicateAndReload()
                     photoService.refreshAuthorizationStatus()
                     pedometerService.refreshAuthorizationStatus()
+                }
+                .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+                    persistenceService.flushPendingSave()
                 }
         }
         .modelContainer(modelContainer)

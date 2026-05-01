@@ -26,6 +26,12 @@ final class PersistenceService {
     private var pendingDistance: Double = 0.0
     private var pendingSteps: Int = 0
 
+    // Throttle for context saves on the location hot-path. At most one save per
+    // `saveThrottleSeconds` — in-memory mutations still apply immediately; this
+    // only coalesces disk + CloudKit flushes.
+    private var pendingSaveTask: Task<Void, Never>?
+    private let saveThrottleSeconds: TimeInterval = 5.0
+
     init(context: ModelContext) {
         self.context = context
     }
@@ -493,6 +499,8 @@ final class PersistenceService {
     }
 
     func save() {
+        pendingSaveTask?.cancel()
+        pendingSaveTask = nil
         do {
             try context.save()
             lastPersistenceError = nil
@@ -500,6 +508,26 @@ final class PersistenceService {
             Self.logger.error("SwiftData save failed: \(error.localizedDescription, privacy: .public)")
             lastPersistenceError = error
         }
+    }
+
+    /// Schedules a save to run after `saveThrottleSeconds`. Subsequent calls
+    /// while a save is already scheduled are no-ops, so the save rate is capped
+    /// at ~1 per throttle interval. Use on the location hot-path instead of `save()`.
+    func scheduleSave() {
+        guard pendingSaveTask == nil else { return }
+        pendingSaveTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(for: .seconds(self.saveThrottleSeconds))
+            guard !Task.isCancelled else { return }
+            self.pendingSaveTask = nil
+            self.save()
+        }
+    }
+
+    /// Cancels any pending throttled save and flushes immediately. Call before
+    /// backgrounding or termination so queued mutations reach disk.
+    func flushPendingSave() {
+        save()
     }
 
     // MARK: - Private Helpers
