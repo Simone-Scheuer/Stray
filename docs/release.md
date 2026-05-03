@@ -7,8 +7,8 @@
 | Field | Value |
 |---|---|
 | App Store version | 1.0.0 (live since April 2026) |
-| In-flight version | 1.1.0 (build 18) |
-| Stage | Pending TestFlight upload (build 17 superseded by Settings restructure + condensed-title fix) |
+| In-flight version | 1.1.0 (build 19) |
+| Stage | Pending TestFlight upload (build 18 superseded by location upgrade banner) |
 | Branch | `design-pass-toolbar` |
 | Bundle ID | `com.simonescheuer.stray` |
 | iOS minimum | 17.0 |
@@ -52,7 +52,8 @@
 ## Backlog
 
 ### 1.1.x bugfixes (if needed post-ship)
-- Reserved for post-TestFlight regressions
+- **Cell Inspector density** — sparse tiles (1 visit, no photos, no notes) feel tall and blank per first-tester feedback. Consider adding coordinates / cell key / neighborhood line below "last visited" to give the page more substance on virgin tiles.
+- **Bottom-row button gap** — possible perceived gap between Apple Maps legal label and the lens button row on certain devices. Confirm with second tester before adjusting.
 
 ### 1.2 (next minor)
 - **Designer-sourced app icon** — currently 1.0 icon ships unchanged

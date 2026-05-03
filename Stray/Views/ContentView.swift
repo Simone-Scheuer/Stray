@@ -33,6 +33,8 @@ struct ContentView: View {
 
     @State private var currentCity: String?
 
+    @AppStorage("hasRequestedAlwaysPrompt") private var hasRequestedAlwaysPrompt = false
+
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -118,7 +120,7 @@ struct ContentView: View {
             )
             .ignoresSafeArea()
 
-            VStack {
+            VStack(spacing: 12) {
                 HStack(alignment: .top) {
                     identityHeader
                     Spacer()
@@ -127,6 +129,7 @@ struct ContentView: View {
                             .transition(.opacity)
                     }
                 }
+                locationUpgradeBanner
                 Spacer()
             }
 
@@ -291,6 +294,71 @@ struct ContentView: View {
                 .background(.white.opacity(0.2), in: Capsule())
             }
             .padding(32)
+        }
+    }
+
+    @ViewBuilder
+    private var locationUpgradeBanner: some View {
+        let status = locationService.authorizationStatus
+        let bigOverlayActive = (status == .denied && gridEngine.revealedCells.isEmpty)
+        let shouldShow = (status == .authorizedWhenInUse || status == .denied)
+            && !bigOverlayActive
+            && !showTimeline
+            && !showSplash
+        if shouldShow {
+            Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                handleLocationUpgradeTap()
+            } label: {
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(status == .denied
+                             ? "Location is turned off."
+                             : "Stray only records while the app is open.")
+                            .font(.system(size: 12, weight: .regular, design: .serif).italic())
+                            .foregroundStyle(.white.opacity(0.85))
+                            .multilineTextAlignment(.leading)
+                        Text(status == .denied
+                             ? "Turn it on in Settings to keep revealing the map"
+                             : "Allow background tracking to record even when closed")
+                            .font(.system(size: 12, weight: .regular, design: .serif))
+                            .foregroundStyle(Color(red: 0.85, green: 0.65, blue: 0.35))
+                    }
+                    Spacer(minLength: 0)
+                    Image(systemName: "arrow.right")
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundStyle(Color(red: 0.85, green: 0.65, blue: 0.35))
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(.black.opacity(0.6), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .stroke(.white.opacity(0.06), lineWidth: 0.5)
+                )
+            }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 16)
+            .accessibilityLabel(status == .denied
+                                ? "Turn on location in Settings"
+                                : "Allow background location tracking")
+            .accessibilityHint(status == .denied
+                               ? "Location is off. Tap to open Settings."
+                               : "Stray only records while the app is open. Tap to allow background tracking.")
+        }
+    }
+
+    private func handleLocationUpgradeTap() {
+        let status = locationService.authorizationStatus
+        // iOS won't re-prompt once denied or once Always was already requested,
+        // so the only action that does anything is sending the user to Settings.
+        if status == .denied || hasRequestedAlwaysPrompt {
+            if let url = URL(string: UIApplication.openSettingsURLString) {
+                UIApplication.shared.open(url)
+            }
+        } else {
+            hasRequestedAlwaysPrompt = true
+            locationService.requestAlwaysPermission()
         }
     }
 
@@ -460,10 +528,9 @@ private struct SplashOverlay: View {
             VStack(spacing: 24) {
                 gridAnimation
 
-                Text("Stray")
-                    .font(.system(size: 32, weight: .light, design: .default))
+                Text("stray")
+                    .font(.system(size: 32, weight: .regular, design: .serif).italic())
                     .foregroundStyle(.white.opacity(0.9))
-                    .tracking(8)
             }
         }
         .onAppear {

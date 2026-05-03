@@ -111,50 +111,21 @@ struct CellInspectorView: View {
     // MARK: - Summary
 
     private func summaryText(count: Int, record: RevealedCell?) -> some View {
-        Text(literarySummary(count: count, record: record))
-            .font(.system(size: 19, weight: .regular, design: .serif).italic())
-            .foregroundStyle(.white.opacity(0.88))
-            .lineSpacing(4)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private func literarySummary(count: Int, record: RevealedCell?) -> String {
-        guard count > 0 else {
-            return "Walk through this area to reveal it."
+        VStack(alignment: .leading, spacing: 6) {
+            Text("\(count) \(count == 1 ? "visit" : "visits")")
+                .font(.system(size: 22, weight: .regular, design: .serif))
+                .foregroundStyle(.white.opacity(0.92))
+            if count > 0, let record {
+                Text("last visited \(relativeTime(from: record.lastVisitedAt))")
+                    .font(.system(size: 13, weight: .regular, design: .serif))
+                    .foregroundStyle(.white.opacity(0.6))
+            } else if count == 0 {
+                Text("walk through this area to reveal it")
+                    .font(.system(size: 13, weight: .regular, design: .serif))
+                    .foregroundStyle(.white.opacity(0.6))
+            }
         }
-        guard let record = record else {
-            return "You've passed through here \(describeCount(count))."
-        }
-        let firstFormatted = formatOrdinalDate(record.firstVisitedAt)
-        let lastRelative = relativeTime(from: record.lastVisitedAt)
-        if count == 1 {
-            return "You first walked here \(lastRelative)."
-        }
-        return "You've passed through here \(describeCount(count)) since \(firstFormatted), most recently \(lastRelative)."
-    }
-
-    private func describeCount(_ n: Int) -> String {
-        if n == 1 { return "once" }
-        if n == 2 { return "twice" }
-        if n < 10 {
-            let words = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"]
-            return "\(words[n]) times"
-        }
-        return "\(n) times"
-    }
-
-    private func formatOrdinalDate(_ date: Date) -> String {
-        let day = Calendar.current.component(.day, from: date)
-        let month = date.formatted(.dateTime.month(.wide))
-        let year = Calendar.current.component(.year, from: date)
-        let nowYear = Calendar.current.component(.year, from: Date())
-        let ordinalFormatter = NumberFormatter()
-        ordinalFormatter.numberStyle = .ordinal
-        let ordinalDay = ordinalFormatter.string(from: NSNumber(value: day)) ?? "\(day)"
-        if year == nowYear {
-            return "the \(ordinalDay) of \(month)"
-        }
-        return "the \(ordinalDay) of \(month), \(year)"
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func relativeTime(from date: Date) -> String {

@@ -42,25 +42,31 @@ struct TimelineOverlayView: View {
                 }
             }
 
-            if !dayPhotos.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(dayPhotos, id: \.localIdentifier) { asset in
-                            TimelinePhotoThumbnail(asset: asset, photoService: photoService) {
-                                if let location = asset.location {
-                                    let cell = GridCell.from(
-                                        latitude: location.coordinate.latitude,
-                                        longitude: location.coordinate.longitude
-                                    )
-                                    onCenterCell?(cell)
+            // Always reserve the photo-strip height so the panel sizes
+            // consistently regardless of whether the day has photos.
+            Group {
+                if !dayPhotos.isEmpty {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(dayPhotos, id: \.localIdentifier) { asset in
+                                TimelinePhotoThumbnail(asset: asset, photoService: photoService) {
+                                    if let location = asset.location {
+                                        let cell = GridCell.from(
+                                            latitude: location.coordinate.latitude,
+                                            longitude: location.coordinate.longitude
+                                        )
+                                        onCenterCell?(cell)
+                                    }
                                 }
                             }
                         }
+                        .padding(.horizontal, 24)
                     }
-                    .padding(.horizontal, 24)
+                } else {
+                    Color.clear.frame(height: 52)
                 }
-                .padding(.bottom, 12)
             }
+            .padding(.bottom, 12)
 
             if timelineVM.activeDays.count > 1 {
                 TimelineScrubber(

@@ -96,9 +96,10 @@ struct MapViewRepresentable: UIViewRepresentable {
         if isTimelineActive != context.coordinator.lastTimelineActive {
             context.coordinator.lastTimelineActive = isTimelineActive
             // Push the Apple Maps / Legal attribution above the timeline panel.
-            // ~220pt covers the panel's typical height (with photo strip can grow ~270);
-            // the label still renders just above the panel rather than under it.
-            let bottomInset: CGFloat = isTimelineActive ? 220 : 45
+            // The panel always reserves photo-strip height so its size is consistent
+            // (~290pt with all sections visible). 305 clears the panel bounds and the
+            // shadow's visual falloff (radius 20).
+            let bottomInset: CGFloat = isTimelineActive ? 305 : 45
             UIView.animate(withDuration: 0.3) {
                 uiView.layoutMargins = UIEdgeInsets(top: 8, left: 8, bottom: bottomInset, right: 8)
             }
