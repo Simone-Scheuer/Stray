@@ -20,21 +20,39 @@
 - Decide release: auto-release after May 3 is currently scheduled, manual override possible if anything unexpected lands
 - After live: monitor crash reports + early reviews for ~48h before opening 1.2 work
 
-### 1.2 lead item: LOD threshold nudge
-First-person observation: at moderate zoom-out the fine "spider-web" of personal trails is still visible to the eye, but the LOD aggregator immediately switches to chunky fill-ins. Want trails to persist longer.
+### 1.2 lead item: LOD smoothing + experimental "show all detail" toggle
 
-**Decision:** nudge thresholds up one notch (more detail at zoom-out) rather than expose a user toggle. Toggle was considered but rejected — full-detail rendering at state-level zoom on heavy data sets (200k+ cells) risks stutter/freeze, and the LOD exists precisely for that case. Tuning the default is lower-risk and zero-maintenance.
+**Observation:** at moderate zoom-out the fine spider-web of personal trails is still visible to the eye, but the LOD aggregator switches to chunky fill-ins too early. The real culprit is structural — the `block`→`district` jump is 16x linear / 256x area, while every other tier transition is 4x. That single cliff is what makes the transition feel ugly regardless of where the threshold sits.
 
-**Where:** [`GridEngine.LODLevel.level(for:)`](../Stray/Services/GridEngine.swift) — shift each `latitudeDelta` boundary up one tier so `base` (50m) persists to ~0.20°, `block` to ~0.60°, etc. Approximately:
+**Three-part plan:**
+
+**(1) Add an intermediate LOD tier between `block` and `district`.**
+Insert `street` = 16 (800m cells) into [`GridEngine.LODLevel`](../Stray/Services/GridEngine.swift). Tower becomes 4x-spaced end to end:
 ```
-..<0.20  → .base    (was ..<0.06)
-..<0.60  → .block   (was ..<0.20)
-..<3.0   → .district
-..<6.0   → .city
-..<???   → .metro
+base 50m → block 200m → street 800m → district 3.2km → city 12.8km → metro ~51km → region ~205km
+              4x            4x             4x              4x             4x            4x
+```
+Threshold-only nudges don't fix the cliff — they just move where it is. The new tier is what kills it.
+
+**(2) Push thresholds outward so `base`/`block` persist longer.**
+Trails read as a spider-web well past the current `0.06°`/`0.20°` cutoffs. Approximate new values:
+```
+..<0.20  → .base     (was ..<0.06)
+..<0.60  → .block    (was ..<0.20)
+..<2.0   → .street   (NEW)
+..<6.0   → .district (was ..<0.60 / 3.0)
+..<12.0  → .city
+..<24.0  → .metro
 default  → .region
 ```
-Self-test on own data first; if performance feels right, ship. If a heavy-data user later complains, fall back to the toggle as escape hatch.
+Self-test on own data first; tune in the simulator with seed data if needed before shipping.
+
+**(3) Experimental "Show all detail" toggle in Settings.**
+Place under a new `Settings → Experimental` (or `Labs`) section with a clear performance warning. When ON, skip LOD aggregation entirely and render base 50m everywhere. Default OFF. Wired via `@AppStorage("experimentalDisableLOD")`. Affects only [`FogOverlay.swift`](../Stray/Services/FogOverlay.swift) — when flag is true, force `level = .base`.
+
+**Optional safety floor:** even with the toggle ON, cap visible cell count at ~100k per render. Prevents pathological "user with 500k cells zooms to continental view" hangs. Skip if heavy-user data scale isn't realistic.
+
+**Order of operations:** (1) and (2) are the actual feel fix and ship together. (3) is opt-in for power users who want even more.
 
 ## 1.1.0 — design pass + battery optimization
 
