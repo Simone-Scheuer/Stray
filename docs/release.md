@@ -1,24 +1,25 @@
 # Stray — Release Status
 
-**Last updated:** 2026-05-04
+**Last updated:** 2026-05-05
 
 ## Current state
 
 | Field | Value |
 |---|---|
-| App Store version | 1.0.0 (live since April 2026) |
-| In-flight version | 1.1.0 (build 24) |
-| Stage | Submitted to App Review 2026-05-04 — awaiting approval |
+| App Store version | 1.1.0 approved 2026-05-05 — auto-release in progress (live within 24h) |
+| Previous live version | 1.0.0 (live since April 2026) |
+| In-flight version | — |
+| Stage | Approved by App Review; auto-release threshold (May 3) already passed |
 | Branch | `design-pass-toolbar` |
 | Bundle ID | `com.simonescheuer.stray` |
 | iOS minimum | 17.0 |
 
 ## Next steps
 
-### Once 1.1 is approved
-- Watch for review feedback in the contact email; respond promptly
-- Decide release: auto-release after May 3 is currently scheduled, manual override possible if anything unexpected lands
-- After live: monitor crash reports + early reviews for ~48h before opening 1.2 work
+### 1.1 approved 2026-05-05 — now live or going live within 24h
+- Confirm 1.1.0 is publicly available on the App Store before declaring it shipped
+- Monitor crash reports + early reviews for ~48h before opening 1.2 work
+- If a 1.1.x bugfix is needed (cell inspector density, bottom-row gap, etc.), branch from main, fix narrowly, ship
 
 ### 1.2 lead item: LOD smoothing + experimental "show all detail" toggle
 
@@ -117,7 +118,7 @@ Place under a new `Settings → Experimental` (or `Labs`) section with a clear p
 | Version | Build | Status | Notes |
 |---|---|---|---|
 | 1.0.0 | 12 | Live | Initial App Store ship, April 2026 |
-| 1.1.0 | 24 | Submitted, in review | Design pass + battery work + foreground geocoding + 2026-05-01 polish (italic tightening, scroll-condensed titles, literary timeline dates, onboarding restyle, footer copy tightening, AI/cute copy strip, weekday dropped from timeline date, Settings restructure, condensed-title default-value bug fixed) + 2026-05-04 polish (location upgrade banner for `.authorizedWhenInUse`/`.denied`, splash wordmark switched to brand serif italic, cell inspector reverted from literary line to plain "X visits" + "last visited Y", timeline panel always reserves photo-strip height + legal label inset bumped to 305) |
+| 1.1.0 | 24 | Approved 2026-05-05, releasing | Design pass + battery work + foreground geocoding + 2026-05-01 polish (italic tightening, scroll-condensed titles, literary timeline dates, onboarding restyle, footer copy tightening, AI/cute copy strip, weekday dropped from timeline date, Settings restructure, condensed-title default-value bug fixed) + 2026-05-04 polish (location upgrade banner for `.authorizedWhenInUse`/`.denied`, splash wordmark switched to brand serif italic, cell inspector reverted from literary line to plain "X visits" + "last visited Y", timeline panel always reserves photo-strip height + legal label inset bumped to 305). Submitted 2026-05-02, approved 2026-05-05 — clean run, no rejection round. |
 
 ## Release notes drafting
 
