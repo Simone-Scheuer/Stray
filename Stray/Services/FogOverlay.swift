@@ -120,25 +120,36 @@ final class FogOverlayRenderer: MKOverlayRenderer {
         let isHeatMode = gridEngine.heatCells
         let isPhotoMode = gridEngine.photoCells != nil
 
-        for (lodCell, coverage, _) in aggregated {
+        for (lodCell, coverage, cellCount, valueSum) in aggregated {
             let cellRect = lodCellScreenRect(for: lodCell)
 
             context.setBlendMode(.clear)
             context.fill(cellRect)
             context.setBlendMode(.normal)
 
-            let tint: UIColor
             if isPhotoMode {
                 let alpha = 0.20 + coverage * 0.25
-                tint = Constants.photoDensityMedium.withAlphaComponent(alpha)
+                context.setFillColor(Constants.photoDensityMedium.withAlphaComponent(alpha).cgColor)
+                context.fill(cellRect)
             } else if isHeatMode {
-                tint = coverageHeatColor(coverage)
+                // Base layer: default revealedCellTint forms the thin per-cell border at LOD,
+                // mirroring base-zoom behavior where heat tints overlay the default fill.
+                let baseAlpha = 0.25 + coverage * 0.30
+                context.setFillColor(Constants.revealedCellTint.withAlphaComponent(baseAlpha).cgColor)
+                context.fill(cellRect)
+
+                // Heat overlay at slightly-inset rect so the base shows as a thin border.
+                // Color keyed off avg visits in this LOD region (NOT coverage — they're independent).
+                let avgVisits = cellCount > 0 ? Int(round(Double(valueSum) / Double(cellCount))) : 0
+                if let heat = heatColor(for: avgVisits) {
+                    context.setFillColor(heat.cgColor)
+                    context.fill(cellRect.insetBy(dx: 0.5, dy: 0.5))
+                }
             } else {
                 let alpha = 0.25 + coverage * 0.30
-                tint = Constants.revealedCellTint.withAlphaComponent(alpha)
+                context.setFillColor(Constants.revealedCellTint.withAlphaComponent(alpha).cgColor)
+                context.fill(cellRect)
             }
-            context.setFillColor(tint.cgColor)
-            context.fill(cellRect)
         }
 
     }
@@ -234,35 +245,6 @@ final class FogOverlayRenderer: MKOverlayRenderer {
             context.setFillColor(UIColor.white.withAlphaComponent(0.35).cgColor)
             context.fill(cellRect)
         }
-    }
-
-    // MARK: - Heat Coverage Color (LOD only, when heat mode is on)
-
-    private func coverageHeatColor(_ coverage: Double) -> UIColor {
-        guard !heatColors.isEmpty else { return Constants.revealedCellTint }
-
-        let position = min(1.0, max(0.0, coverage))
-        let index = position * Double(heatColors.count - 1)
-        let lower = Int(floor(index))
-        let upper = min(lower + 1, heatColors.count - 1)
-        let fraction = CGFloat(index - Double(lower))
-
-        let c1 = heatColors[lower]
-        let c2 = heatColors[upper]
-
-        var r1: CGFloat = 0, g1: CGFloat = 0, b1: CGFloat = 0, a1: CGFloat = 0
-        var r2: CGFloat = 0, g2: CGFloat = 0, b2: CGFloat = 0, a2: CGFloat = 0
-        c1.getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
-        c2.getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
-
-        let alpha: CGFloat = 0.35 + CGFloat(position) * 0.30
-
-        return UIColor(
-            red: r1 + (r2 - r1) * fraction,
-            green: g1 + (g2 - g1) * fraction,
-            blue: b1 + (b2 - b1) * fraction,
-            alpha: alpha
-        )
     }
 
     // MARK: - Geometry Helpers

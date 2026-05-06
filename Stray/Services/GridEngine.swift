@@ -405,15 +405,20 @@ final class GridEngine {
     }
 
     /// Returns aggregated cells for the given region at the specified LOD level.
-    /// Each cell has a coverage fraction (0.0–1.0) and the raw base-cell count.
-    func aggregatedCells(in region: MKCoordinateRegion, level: LODLevel) -> [(LODCell, Double, Int)] {
+    /// Each tuple is (lodCell, coverage 0.0–1.0, cellCount, valueSum).
+    /// - cellCount: number of base cells revealed within this LOD region.
+    /// - valueSum: sum of values (visit counts in default/heat mode, photo counts in photo mode).
+    /// Coverage is independent of value: a fully-covered region with all 1-visit cells has
+    /// coverage 1.0 but valueSum equal to cellCount, so heat coloring should average value/count.
+    func aggregatedCells(in region: MKCoordinateRegion, level: LODLevel) -> [(LODCell, Double, Int, Int)] {
         let source = photoCells ?? timelineCells ?? revealedCells
         guard !source.isEmpty else { return [] }
 
         let degStep = level.latStep // uniform degree step
         let subcellArea = Double(level.subcellCount)
 
-        var buckets: [LODCell: Int] = [:]
+        var cellCounts: [LODCell: Int] = [:]
+        var valueSums: [LODCell: Int] = [:]
 
         let minLat = region.center.latitude - region.span.latitudeDelta / 2.0
         let maxLat = region.center.latitude + region.span.latitudeDelta / 2.0
@@ -429,27 +434,28 @@ final class GridEngine {
             for lngB in minLngBucket...maxLngBucket {
                 let bucket = SpatialBucket(latDegree: latB, lngDegree: lngB)
                 guard let cells = spatialIndex[bucket] else { continue }
-                let sumValues = photoCells != nil
                 for cell in cells {
                     guard let value = source[cell] else { continue }
                     let coord = cell.coordinate
                     let lodLatB = Int(floor(coord.latitude / degStep))
                     let lodLngB = Int(floor(coord.longitude / degStep))
                     let lodCell = LODCell(latBucket: lodLatB, lngBucket: lodLngB, degreeStep: degStep)
-                    buckets[lodCell, default: 0] += sumValues ? value : 1
+                    cellCounts[lodCell, default: 0] += 1
+                    valueSums[lodCell, default: 0] += value
                 }
             }
         }
 
         let pad = degStep
-        return buckets.compactMap { (lodCell, count) in
+        return cellCounts.compactMap { (lodCell, cellCount) in
             let coord = lodCell.coordinate
             guard coord.latitude >= minLat - pad && coord.latitude <= maxLat + pad
                 && coord.longitude >= minLng - pad && coord.longitude <= maxLng + pad else {
                 return nil
             }
-            let coverage = min(1.0, Double(count) / subcellArea)
-            return (lodCell, coverage, count)
+            let coverage = min(1.0, Double(cellCount) / subcellArea)
+            let valueSum = valueSums[lodCell] ?? 0
+            return (lodCell, coverage, cellCount, valueSum)
         }
     }
 

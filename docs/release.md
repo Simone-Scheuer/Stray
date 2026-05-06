@@ -19,7 +19,7 @@
 ### 1.1 approved 2026-05-05 — now live or going live within 24h
 - Confirm 1.1.0 is publicly available on the App Store before declaring it shipped
 - Monitor crash reports + early reviews for ~48h before opening 1.2 work
-- If a 1.1.x bugfix is needed (cell inspector density, bottom-row gap, etc.), branch from main, fix narrowly, ship
+- **Heat LOD bug fix rolled into 1.2** (was considered as 1.1.1, decided 2026-05-05 to bundle with structural LOD work). Aggregator was returning cell-count as the third tuple field — the renderer fed it as `coverage` into heat coloring, so a fully-covered region of 1-visit cells got max-heat regardless of underlying visits. Also no per-cell border at LOD because no default-tint base pass. Fixes live on `1.2-lod` branch as its first commit, paired with the LOD restructure work below.
 
 ### 1.2 lead item: LOD smoothing + experimental "show all detail" toggle
 
@@ -35,18 +35,18 @@ base 50m → block 200m → street 800m → district 3.2km → city 12.8km → m
 ```
 Threshold-only nudges don't fix the cliff — they just move where it is. The new tier is what kills it.
 
-**(2) Push thresholds outward so `base`/`block` persist longer.**
-Trails read as a spider-web well past the current `0.06°`/`0.20°` cutoffs. Approximate new values:
+**(2) Push thresholds outward — significantly — so base persists through "whole-map at city level."**
+First-tester observation: car-trip trails are visible to the eye well past current cutoffs but the LOD aggregator kicks in too early; the cute thin trails get aggregated away. Goal is that a comfortable "looking at all my walks across the metro" view still renders base 50m cells. Approximate revised targets — base goes much further than the conservative 0.20° I first proposed:
 ```
-..<0.20  → .base     (was ..<0.06)
-..<0.60  → .block    (was ..<0.20)
-..<2.0   → .street   (NEW)
-..<6.0   → .district (was ..<0.60 / 3.0)
-..<12.0  → .city
-..<24.0  → .metro
+..<0.40  → .base     (was ..<0.06; original revised plan was ..<0.20)
+..<1.0   → .block    (was ..<0.20)
+..<3.0   → .street   (NEW)
+..<8.0   → .district (was ..<0.60)
+..<16.0  → .city
+..<32.0  → .metro
 default  → .region
 ```
-Self-test on own data first; tune in the simulator with seed data if needed before shipping.
+Exact values need on-device tuning. The intent is: keep base alive through what feels like "looking at the whole city/metro on screen at once." Performance sanity-check during tuning — if rendering 50k+ base cells in viewport gets sluggish, dial back. The opt-in toggle (item 3) is the escape hatch for users who want even further.
 
 **(3) Experimental "Show all detail" toggle in Settings.**
 Place under a new `Settings → Experimental` (or `Labs`) section with a clear performance warning. When ON, skip LOD aggregation entirely and render base 50m everywhere. Default OFF. Wired via `@AppStorage("experimentalDisableLOD")`. Affects only [`FogOverlay.swift`](../Stray/Services/FogOverlay.swift) — when flag is true, force `level = .base`.
