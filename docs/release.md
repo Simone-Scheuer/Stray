@@ -1,25 +1,27 @@
 # Stray — Release Status
 
-**Last updated:** 2026-05-05
+**Last updated:** 2026-05-09
 
 ## Current state
 
 | Field | Value |
 |---|---|
-| App Store version | 1.1.0 approved 2026-05-05 — auto-release in progress (live within 24h) |
-| Previous live version | 1.0.0 (live since April 2026) |
-| In-flight version | — |
-| Stage | Approved by App Review; auto-release threshold (May 3) already passed |
-| Branch | `design-pass-toolbar` |
+| App Store version | 1.1.0 (live) |
+| In-flight version | 1.2.0 (build 25) |
+| Stage | TestFlight prep — heat LOD bug fix only, structural LOD work pending |
+| Branch | `1.2-lod` |
 | Bundle ID | `com.simonescheuer.stray` |
 | iOS minimum | 17.0 |
 
 ## Next steps
 
-### 1.1 approved 2026-05-05 — now live or going live within 24h
-- Confirm 1.1.0 is publicly available on the App Store before declaring it shipped
-- Monitor crash reports + early reviews for ~48h before opening 1.2 work
-- **Heat LOD bug fix rolled into 1.2** (was considered as 1.1.1, decided 2026-05-05 to bundle with structural LOD work). Aggregator was returning cell-count as the third tuple field — the renderer fed it as `coverage` into heat coloring, so a fully-covered region of 1-visit cells got max-heat regardless of underlying visits. Also no per-cell border at LOD because no default-tint base pass. Fixes live on `1.2-lod` branch as its first commit, paired with the LOD restructure work below.
+### 1.2.0 build 25 — first TestFlight build of the 1.2 train
+- Contains **only** the heat LOD bug fix (averaged visits + restored per-cell border). No structural LOD work yet.
+- Goal of this build: verify the heat-mode bug fix renders correctly on actual hardware before layering the bigger LOD restructure on top.
+- Once verified on TestFlight, open the structural work below: new `street` tier + threshold push + experimental toggle.
+
+### Earlier
+- 1.1.0 approved 2026-05-05; now live on the App Store.
 
 ### 1.2 lead item: LOD smoothing + experimental "show all detail" toggle
 
@@ -118,7 +120,8 @@ Place under a new `Settings → Experimental` (or `Labs`) section with a clear p
 | Version | Build | Status | Notes |
 |---|---|---|---|
 | 1.0.0 | 12 | Live | Initial App Store ship, April 2026 |
-| 1.1.0 | 24 | Approved 2026-05-05, releasing | Design pass + battery work + foreground geocoding + 2026-05-01 polish (italic tightening, scroll-condensed titles, literary timeline dates, onboarding restyle, footer copy tightening, AI/cute copy strip, weekday dropped from timeline date, Settings restructure, condensed-title default-value bug fixed) + 2026-05-04 polish (location upgrade banner for `.authorizedWhenInUse`/`.denied`, splash wordmark switched to brand serif italic, cell inspector reverted from literary line to plain "X visits" + "last visited Y", timeline panel always reserves photo-strip height + legal label inset bumped to 305). Submitted 2026-05-02, approved 2026-05-05 — clean run, no rejection round. |
+| 1.1.0 | 24 | Live | Design pass + battery work + foreground geocoding + 2026-05-01 polish (italic tightening, scroll-condensed titles, literary timeline dates, onboarding restyle, footer copy tightening, AI/cute copy strip, weekday dropped from timeline date, Settings restructure, condensed-title default-value bug fixed) + 2026-05-04 polish (location upgrade banner for `.authorizedWhenInUse`/`.denied`, splash wordmark switched to brand serif italic, cell inspector reverted from literary line to plain "X visits" + "last visited Y", timeline panel always reserves photo-strip height + legal label inset bumped to 305). Submitted 2026-05-02, approved 2026-05-05 — clean run, no rejection round. |
+| 1.2.0 | 25 | TestFlight prep | First 1.2 build — heat LOD bug fix only (averaged visits + restored per-cell border at LOD). Structural LOD work (street tier, threshold push, experimental toggle) layers on subsequent builds. |
 
 ## Release notes drafting
 
