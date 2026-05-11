@@ -13,6 +13,7 @@ struct SettingsView: View {
     @AppStorage(Constants.showTrafficKey) private var showTraffic = false
     @AppStorage(Constants.allowRotationKey) private var allowRotation = true
     @AppStorage(Constants.mapStyleKey) private var mapStyle = "standard"
+    @AppStorage(Constants.experimentalDisableLODKey) private var experimentalDisableLOD = false
 
     @State private var showCondensedTitle = false
 
@@ -26,6 +27,7 @@ struct SettingsView: View {
                 trackingSection
                 permissionsSection
                 mapSection
+                experimentalSection
                 #if DEBUG
                 debugSection
                 #endif
@@ -226,6 +228,17 @@ struct SettingsView: View {
         case .authorized: return "Full Access"
         case .limited: return "Limited"
         @unknown default: return "Unknown"
+        }
+    }
+
+    // MARK: - Experimental
+
+    private var experimentalSection: some View {
+        section(
+            header: "experimental",
+            footer: "Renders full 50m detail at every zoom. May feel sluggish on long-zoomed views of large data."
+        ) {
+            toggleRow("show all detail", isOn: $experimentalDisableLOD)
         }
     }
 

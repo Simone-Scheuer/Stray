@@ -33,7 +33,10 @@ final class FogOverlayRenderer: MKOverlayRenderer {
         let zoomFactor = min(latDelta / 6.0, 1.0)
         let fogAlpha = baseFogAlpha * (1.0 - zoomFactor * 0.25)
 
-        let level = GridEngine.LODLevel.level(for: latDelta)
+        // Experimental toggle: when on, skip LOD aggregation entirely and render base 50m cells
+        // at every zoom level. Performance trade is explicit; user opted in via Settings.
+        let disableLOD = UserDefaults.standard.bool(forKey: Constants.experimentalDisableLODKey)
+        let level: GridEngine.LODLevel = disableLOD ? .base : GridEngine.LODLevel.level(for: latDelta)
 
         if level == .base {
             drawBaseLevel(region: region, fogAlpha: fogAlpha, drawRect: drawRect, context: context)

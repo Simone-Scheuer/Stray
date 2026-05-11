@@ -352,10 +352,12 @@ final class GridEngine {
     // MARK: - LOD Aggregation
 
     /// LOD levels for multi-scale rendering.
-    /// 4x steps — each kicks in when the previous level's cells get too small to see.
+    /// `block` (200m) dropped — visually indistinguishable from `base` per first-tester feedback.
+    /// `street` (800m, 16x base) is the new first aggregation tier; visually distinct enough to
+    /// signal a real LOD change. Subsequent tiers are 4x steps.
     enum LODLevel: Int, CaseIterable {
         case base = 1            // 50m
-        case block = 4           // 200m
+        case street = 16         // 800m
         case district = 64       // 3.2km
         case city = 256          // 12.8km
         case metro = 1024        // ~51km
@@ -365,13 +367,16 @@ final class GridEngine {
         /// Degree step used for uniform lat/lng bucketing
         var latStep: Double { GridCell.latStep * Double(rawValue) }
 
+        /// Thresholds pushed significantly outward from earlier defaults so the 50m
+        /// spider-web persists through "whole-city" zoom. Tuned for first-tester intuition;
+        /// further iteration in the simulator may refine these.
         static func level(for latitudeDelta: Double) -> LODLevel {
             switch latitudeDelta {
-            case ..<0.06:  return .base
-            case ..<0.20:  return .block
-            case ..<0.60:  return .district
-            case ..<3.0:   return .city
-            case ..<6.0:   return .metro
+            case ..<0.30:  return .base
+            case ..<1.5:   return .street
+            case ..<5.0:   return .district
+            case ..<15.0:  return .city
+            case ..<30.0:  return .metro
             default:       return .region
             }
         }

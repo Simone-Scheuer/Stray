@@ -12,6 +12,7 @@ struct ContentView: View {
     @AppStorage(Constants.showTrafficKey) private var showTraffic = false
     @AppStorage(Constants.allowRotationKey) private var allowRotation = true
     @AppStorage(Constants.mapStyleKey) private var mapStyle = "standard"
+    @AppStorage(Constants.experimentalDisableLODKey) private var experimentalDisableLOD = false
 
     @State private var showStats = false
     @State private var showSettings = false
@@ -110,6 +111,7 @@ struct ContentView: View {
                 allowRotation: allowRotation,
                 mapStyle: mapStyle,
                 isTimelineActive: showTimeline,
+                experimentalDisableLOD: experimentalDisableLOD,
                 isFollowingUser: $isFollowingUser,
                 onCellTapped: { cell in
                     guard !showTimeline else { return }

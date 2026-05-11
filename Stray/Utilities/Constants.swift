@@ -50,6 +50,7 @@ enum Constants {
     static let allowRotationKey = "allowRotation"
     static let hasCompletedPhotoScanKey = "hasCompletedPhotoScan"
     static let mapStyleKey = "mapStyle"
+    static let experimentalDisableLODKey = "experimentalDisableLOD"
 
     // Photo density gradient colors (purple/magenta spectrum)
     static let photoDensityFaint = UIColor(red: 0.55, green: 0.30, blue: 0.85, alpha: 0.30)

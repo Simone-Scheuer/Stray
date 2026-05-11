@@ -9,6 +9,7 @@ struct MapViewRepresentable: UIViewRepresentable {
     var allowRotation: Bool = true
     var mapStyle: String = "standard"
     var isTimelineActive: Bool = false
+    var experimentalDisableLOD: Bool = false
     @Binding var isFollowingUser: Bool
     var onCellTapped: ((GridCell) -> Void)?
 
@@ -104,6 +105,12 @@ struct MapViewRepresentable: UIViewRepresentable {
                 uiView.layoutMargins = UIEdgeInsets(top: 8, left: 8, bottom: bottomInset, right: 8)
             }
         }
+
+        if experimentalDisableLOD != context.coordinator.lastExperimentalDisableLOD {
+            context.coordinator.lastExperimentalDisableLOD = experimentalDisableLOD
+            // FogOverlay reads UserDefaults at draw time — trigger a redraw so the new value takes effect.
+            context.coordinator.fogRenderer?.setNeedsDisplay()
+        }
     }
 
     static func buildMapConfig(style: String, mutedMapStyle: Bool, showTraffic: Bool, showMapLabels: Bool) -> MKMapConfiguration {
@@ -138,6 +145,7 @@ struct MapViewRepresentable: UIViewRepresentable {
         var lastAllowRotation: Bool = true
         var lastMapStyle: String = "standard"
         var lastTimelineActive: Bool = false
+        var lastExperimentalDisableLOD: Bool = false
         var onCellTapped: ((GridCell) -> Void)?
         var isFollowingUser: Binding<Bool>
 
