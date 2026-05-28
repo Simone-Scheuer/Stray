@@ -7,8 +7,8 @@
 | Field | Value |
 |---|---|
 | App Store version | 1.1.0 (live) |
-| In-flight version | 1.2.0 (build 26) |
-| Stage | TestFlight prep — heat LOD bug fix + structural LOD restructure (dropped `block`, added `street`, pushed thresholds) + experimental "show all detail" toggle |
+| In-flight version | 1.2.0 (build 27) |
+| Stage | TestFlight prep — LOD restructure + timeline back/forward buttons (tap or hold) + scrubber smoothness optimization (defer engine work to drag-end) |
 | Branch | `1.2-lod` |
 | Bundle ID | `com.simonescheuer.stray` |
 | iOS minimum | 17.0 |
@@ -124,7 +124,8 @@ Place under a new `Settings → Experimental` (or `Labs`) section with a clear p
 | 1.0.0 | 12 | Live | Initial App Store ship, April 2026 |
 | 1.1.0 | 24 | Live | Design pass + battery work + foreground geocoding + 2026-05-01 polish (italic tightening, scroll-condensed titles, literary timeline dates, onboarding restyle, footer copy tightening, AI/cute copy strip, weekday dropped from timeline date, Settings restructure, condensed-title default-value bug fixed) + 2026-05-04 polish (location upgrade banner for `.authorizedWhenInUse`/`.denied`, splash wordmark switched to brand serif italic, cell inspector reverted from literary line to plain "X visits" + "last visited Y", timeline panel always reserves photo-strip height + legal label inset bumped to 305). Submitted 2026-05-02, approved 2026-05-05 — clean run, no rejection round. |
 | 1.2.0 | 25 | TestFlight (superseded by 26) | First 1.2 build — heat LOD bug fix only. |
-| 1.2.0 | 26 | TestFlight prep | Heat LOD bug fix + LOD restructure: dropped `block` (200m — visually indistinguishable from `base` per first-tester feedback), added `street` (800m, 16x base) as new first aggregation tier, thresholds pushed significantly outward (base now persists to ~0.30° latDelta, was 0.06°). Plus Experimental section in Settings with "show all detail" toggle — bypasses LOD entirely, opt-in with performance warning. |
+| 1.2.0 | 26 | TestFlight (superseded by 27) | Heat LOD bug fix + LOD restructure (dropped block, added street, pushed thresholds) + experimental toggle. |
+| 1.2.0 | 27 | TestFlight prep | Timeline ergonomics: back/forward chevron buttons flanking the date in the header (tap = step one day, hold = auto-advance after 350ms with 220ms repeat). Scrubber stutter fix — `onSelect` now fires only on drag-end, not during. Date label still updates live via local `dragIndex`; heavy day-apply / photo-load / pedometer work runs once on commit. |
 
 ## Release notes drafting
 

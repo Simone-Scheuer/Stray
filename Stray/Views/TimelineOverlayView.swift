@@ -119,23 +119,50 @@ struct TimelineOverlayView: View {
 
             Spacer()
 
-            VStack(spacing: 3) {
-                Text(timelineVM.formattedDate)
-                    .font(.system(size: 20, weight: .regular, design: .serif).italic())
-                    .foregroundStyle(.white.opacity(0.92))
-                    .lineLimit(1)
-                    .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.75)
-                Text(timelineVM.progressLabel.uppercased())
-                    .font(.system(size: 10, weight: .medium, design: .serif))
-                    .tracking(1.4)
-                    .foregroundStyle(.white.opacity(0.5))
+            HStack(spacing: 6) {
+                HoldableStepButton(systemName: "chevron.left", isDisabled: !canGoBack) {
+                    step(direction: -1)
+                }
+                .accessibilityLabel("Previous day")
+
+                VStack(spacing: 3) {
+                    Text(timelineVM.formattedDate)
+                        .font(.system(size: 20, weight: .regular, design: .serif).italic())
+                        .foregroundStyle(.white.opacity(0.92))
+                        .lineLimit(1)
+                        .multilineTextAlignment(.center)
+                        .minimumScaleFactor(0.75)
+                    Text(timelineVM.progressLabel.uppercased())
+                        .font(.system(size: 10, weight: .medium, design: .serif))
+                        .tracking(1.4)
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+
+                HoldableStepButton(systemName: "chevron.right", isDisabled: !canGoForward) {
+                    step(direction: 1)
+                }
+                .accessibilityLabel("Next day")
             }
 
             Spacer()
 
             Color.clear.frame(width: 26, height: 26)
         }
+    }
+
+    private var canGoBack: Bool {
+        timelineVM.selectedIndex > 0
+    }
+
+    private var canGoForward: Bool {
+        timelineVM.selectedIndex < timelineVM.activeDays.count - 1
+    }
+
+    private func step(direction: Int) {
+        guard let ps = persistenceService else { return }
+        let newIndex = timelineVM.selectedIndex + direction
+        guard newIndex >= 0 && newIndex < timelineVM.activeDays.count else { return }
+        timelineVM.selectIndex(newIndex, gridEngine: gridEngine, persistence: ps)
     }
 
     // MARK: - Stat Component
@@ -218,6 +245,50 @@ private struct TimelinePhotoThumbnail: View {
     }
 }
 
+// MARK: - Holdable Step Button
+
+/// Chevron-style icon button. Tap = single action; press-and-hold = action repeats
+/// after a 350ms activation delay, then every 220ms while held. Light haptic on press-down.
+private struct HoldableStepButton: View {
+    let systemName: String
+    let isDisabled: Bool
+    let action: () -> Void
+
+    @State private var holdTimer: Timer?
+    @State private var holdStarted = false
+
+    private let holdActivationDelay: TimeInterval = 0.35
+    private let holdRepeatInterval: TimeInterval = 0.22
+
+    var body: some View {
+        Image(systemName: systemName)
+            .font(.system(size: 14, weight: .regular))
+            .foregroundStyle(.white.opacity(isDisabled ? 0.2 : 0.7))
+            .frame(width: 28, height: 28)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        guard !isDisabled, !holdStarted else { return }
+                        holdStarted = true
+                        UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                        action()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + holdActivationDelay) {
+                            guard holdStarted else { return }
+                            holdTimer = Timer.scheduledTimer(withTimeInterval: holdRepeatInterval, repeats: true) { _ in
+                                action()
+                            }
+                        }
+                    }
+                    .onEnded { _ in
+                        holdStarted = false
+                        holdTimer?.invalidate()
+                        holdTimer = nil
+                    }
+            )
+    }
+}
+
 // MARK: - Timeline Scrubber
 
 private struct TimelineScrubber: View {
@@ -228,12 +299,9 @@ private struct TimelineScrubber: View {
 
     @State private var isDragging = false
     @State private var dragIndex: Int = 0
-    @State private var lastFiredIndex: Int = -1
-    @State private var lastFireTime: Date = .distantPast
 
     private let trackHeight: CGFloat = 3
     private let thumbSize: CGFloat = 18
-    private let scrubThrottleInterval: TimeInterval = 0.1
 
     var body: some View {
         VStack(spacing: 8) {
@@ -278,19 +346,13 @@ private struct TimelineScrubber: View {
                                     let fraction = trackWidth > 0 ? max(0, min(1, value.location.x / trackWidth)) : 0
                                     let newIndex = min(Int(round(fraction * CGFloat(maxIndex))), maxIndex)
                                     dragIndex = newIndex
-                                    let now = Date()
-                                    if newIndex != lastFiredIndex && now.timeIntervalSince(lastFireTime) >= scrubThrottleInterval {
-                                        lastFiredIndex = newIndex
-                                        lastFireTime = now
-                                        onSelect(newIndex)
-                                    }
+                                    // Don't fire onSelect during drag — only on release.
+                                    // Date label updates live via dragIndex; the heavy work
+                                    // (day-apply, photos, pedometer) runs once on commit.
                                 }
                                 .onEnded { _ in
                                     isDragging = false
-                                    if dragIndex != lastFiredIndex {
-                                        lastFiredIndex = dragIndex
-                                        onSelect(dragIndex)
-                                    }
+                                    onSelect(dragIndex)
                                 }
                         )
                 }
