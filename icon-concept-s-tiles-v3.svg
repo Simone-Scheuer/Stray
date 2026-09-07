@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="50%" r="60%">
+      <stop offset="0%" stop-color="#161625"/>
+      <stop offset="100%" stop-color="#0a0a10"/>
+    </radialGradient>
+
+    <!-- Single unified glow behind the whole S -->
+    <filter id="ambientGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="40"/>
+    </filter>
+
+    <!-- Subtle tile glow -->
+    <filter id="tileGlow" x="-15%" y="-15%" width="130%" height="130%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <!-- Full gradient for the unified glow shape -->
+    <linearGradient id="glowGrad" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#E8C840"/>
+      <stop offset="30%" stop-color="#5BB868"/>
+      <stop offset="60%" stop-color="#3DA5A5"/>
+      <stop offset="100%" stop-color="#4577D9"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+
+  <!-- Single ambient glow blob -->
+  <g filter="url(#ambientGlow)" opacity="0.25">
+    <rect x="280" y="180" width="464" height="664" rx="40" fill="url(#glowGrad)"/>
+  </g>
+
+  <!-- S made from tiles -->
+  <!-- Centered at 512,512. Tile=48px, gap=4px, step=52px -->
+  <!-- S is 7 columns wide (364px), centered: starts at x=330 -->
+  <!-- S is 9 rows tall (468px), centered: starts at y=278 -->
+  <g filter="url(#tileGlow)">
+
+    <!-- ROW 0 (y=278): top bar — gold -->
+    <rect x="382" y="278" width="48" height="48" rx="5" fill="#E8C840" opacity="0.82"/>
+    <rect x="434" y="278" width="48" height="48" rx="5" fill="#E8C840" opacity="0.88"/>
+    <rect x="486" y="278" width="48" height="48" rx="5" fill="#E8C840" opacity="0.92"/>
+    <rect x="538" y="278" width="48" height="48" rx="5" fill="#E8C840" opacity="0.9"/>
+    <rect x="590" y="278" width="48" height="48" rx="5" fill="#E8C840" opacity="0.82"/>
+
+    <!-- ROW 1 (y=330): left side — gold to yellow-green -->
+    <rect x="330" y="330" width="48" height="48" rx="5" fill="#D4B83E" opacity="0.78"/>
+    <rect x="382" y="330" width="48" height="48" rx="5" fill="#D4B83E" opacity="0.85"/>
+    <rect x="434" y="330" width="48" height="48" rx="5" fill="#C8B840" opacity="0.72"/>
+
+    <!-- ROW 2 (y=382): left descender — yellow-green to green -->
+    <rect x="330" y="382" width="48" height="48" rx="5" fill="#A8C444" opacity="0.78"/>
+    <rect x="382" y="382" width="48" height="48" rx="5" fill="#A8C444" opacity="0.7"/>
+
+    <!-- ROW 3 (y=434): left tail + middle bar starts — green -->
+    <rect x="330" y="434" width="48" height="48" rx="5" fill="#8BB84A" opacity="0.68"/>
+    <rect x="382" y="434" width="48" height="48" rx="5" fill="#6DAF55" opacity="0.78"/>
+    <rect x="434" y="434" width="48" height="48" rx="5" fill="#5BB868" opacity="0.88"/>
+    <rect x="486" y="434" width="48" height="48" rx="5" fill="#5BB868" opacity="0.92"/>
+    <rect x="538" y="434" width="48" height="48" rx="5" fill="#5BB868" opacity="0.88"/>
+
+    <!-- ROW 4 (y=486): middle bar continues right — green to teal -->
+    <rect x="486" y="486" width="48" height="48" rx="5" fill="#4DAD80" opacity="0.78"/>
+    <rect x="538" y="486" width="48" height="48" rx="5" fill="#3DA5A5" opacity="0.85"/>
+    <rect x="590" y="486" width="48" height="48" rx="5" fill="#3DA5A5" opacity="0.8"/>
+
+    <!-- ROW 5 (y=538): right descender — teal -->
+    <rect x="538" y="538" width="48" height="48" rx="5" fill="#3A9DB5" opacity="0.78"/>
+    <rect x="590" y="538" width="48" height="48" rx="5" fill="#3A94C0" opacity="0.72"/>
+
+    <!-- ROW 6 (y=590): right tail + bottom bar starts — teal to blue -->
+    <rect x="434" y="590" width="48" height="48" rx="5" fill="#4080CC" opacity="0.78"/>
+    <rect x="486" y="590" width="48" height="48" rx="5" fill="#3DA5A5" opacity="0.82"/>
+    <rect x="538" y="590" width="48" height="48" rx="5" fill="#3A94C0" opacity="0.88"/>
+    <rect x="590" y="590" width="48" height="48" rx="5" fill="#4080CC" opacity="0.72"/>
+    <rect x="642" y="590" width="48" height="48" rx="5" fill="#4577D9" opacity="0.62"/>
+
+    <!-- ROW 7 (y=642): bottom right — blue -->
+    <rect x="538" y="642" width="48" height="48" rx="5" fill="#4577D9" opacity="0.72"/>
+    <rect x="590" y="642" width="48" height="48" rx="5" fill="#4577D9" opacity="0.82"/>
+    <rect x="642" y="642" width="48" height="48" rx="5" fill="#4577D9" opacity="0.78"/>
+
+    <!-- ROW 8 (y=694): bottom bar — blue -->
+    <rect x="382" y="694" width="48" height="48" rx="5" fill="#4577D9" opacity="0.82"/>
+    <rect x="434" y="694" width="48" height="48" rx="5" fill="#4577D9" opacity="0.88"/>
+    <rect x="486" y="694" width="48" height="48" rx="5" fill="#4577D9" opacity="0.92"/>
+    <rect x="538" y="694" width="48" height="48" rx="5" fill="#4577D9" opacity="0.88"/>
+    <rect x="590" y="694" width="48" height="48" rx="5" fill="#4577D9" opacity="0.82"/>
+
+    <!-- === FRAGMENTS === -->
+
+    <!-- Top-right (gold) -->
+    <rect x="646" y="282" width="36" height="36" rx="4" fill="#E8C840" opacity="0.35"/>
+    <rect x="688" y="295" width="24" height="24" rx="3" fill="#E8C840" opacity="0.18"/>
+
+    <!-- Top-left (gold) -->
+    <rect x="336" y="278" width="36" height="36" rx="4" fill="#D4B83E" opacity="0.3"/>
+    <rect x="296" y="290" width="22" height="22" rx="3" fill="#D4B83E" opacity="0.14"/>
+
+    <!-- Left-mid (green) -->
+    <rect x="278" y="420" width="36" height="36" rx="4" fill="#5BB868" opacity="0.28"/>
+    <rect x="242" y="440" width="22" height="22" rx="3" fill="#5BB868" opacity="0.14"/>
+
+    <!-- Right-mid (teal) -->
+    <rect x="646" y="480" width="36" height="36" rx="4" fill="#3DA5A5" opacity="0.3"/>
+    <rect x="688" y="500" width="22" height="22" rx="3" fill="#3DA5A5" opacity="0.15"/>
+
+    <!-- Right lower (teal-blue) -->
+    <rect x="696" y="590" width="32" height="32" rx="4" fill="#4080CC" opacity="0.22"/>
+
+    <!-- Bottom-left (blue) -->
+    <rect x="336" y="698" width="36" height="36" rx="4" fill="#4577D9" opacity="0.35"/>
+    <rect x="296" y="712" width="24" height="24" rx="3" fill="#4577D9" opacity="0.18"/>
+
+    <!-- Bottom-right (blue) -->
+    <rect x="646" y="698" width="34" height="34" rx="4" fill="#4577D9" opacity="0.28"/>
+
+    <!-- === MICRO PARTICLES === -->
+    <rect x="718" y="280" width="14" height="14" rx="2" fill="#E8C840" opacity="0.1"/>
+    <rect x="262" y="295" width="14" height="14" rx="2" fill="#D4B83E" opacity="0.08"/>
+    <rect x="218" y="450" width="14" height="14" rx="2" fill="#5BB868" opacity="0.08"/>
+    <rect x="720" y="515" width="14" height="14" rx="2" fill="#3DA5A5" opacity="0.08"/>
+    <rect x="264" y="725" width="14" height="14" rx="2" fill="#4577D9" opacity="0.1"/>
+    <rect x="720" y="600" width="12" height="12" rx="2" fill="#4080CC" opacity="0.06"/>
+    <rect x="690" y="700" width="12" height="12" rx="2" fill="#4577D9" opacity="0.06"/>
+  </g>
+</svg>

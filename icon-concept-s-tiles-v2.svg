@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="65%">
+      <stop offset="0%" stop-color="#1e1e30"/>
+      <stop offset="100%" stop-color="#0a0a10"/>
+    </radialGradient>
+
+    <!-- Soft ambient glow behind the whole S -->
+    <filter id="ambientGlow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="28"/>
+    </filter>
+
+    <!-- Subtle per-tile glow -->
+    <filter id="tileGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+
+  <!-- Ambient glow: one soft blob behind the S shape -->
+  <g filter="url(#ambientGlow)" opacity="0.3">
+    <!-- Top curve glow -->
+    <rect x="340" y="195" width="340" height="160" rx="30" fill="#5BB868"/>
+    <!-- Middle glow -->
+    <rect x="340" y="370" width="340" height="120" rx="30" fill="#3DA5A5"/>
+    <!-- Bottom curve glow -->
+    <rect x="340" y="520" width="340" height="160" rx="30" fill="#4577D9"/>
+  </g>
+
+  <!-- Tiles: S shape following the original layout -->
+  <!-- Tile = 46px, gap = 4px, step = 50px -->
+  <g filter="url(#tileGlow)">
+
+    <!-- === TOP BAR: gold/yellow-green === -->
+    <!-- Row 0: top crossbar (shifted right like original) -->
+    <rect x="412" y="195" width="46" height="46" rx="5" fill="#D4B83E" opacity="0.85"/>
+    <rect x="462" y="195" width="46" height="46" rx="5" fill="#E8C840" opacity="0.9"/>
+    <rect x="512" y="195" width="46" height="46" rx="5" fill="#E8C840" opacity="0.92"/>
+    <rect x="562" y="195" width="46" height="46" rx="5" fill="#E8C840" opacity="0.88"/>
+    <rect x="612" y="195" width="46" height="46" rx="5" fill="#D4B83E" opacity="0.8"/>
+
+    <!-- Row 1: left block under crossbar -->
+    <rect x="312" y="245" width="46" height="46" rx="5" fill="#C4A643" opacity="0.7"/>
+    <rect x="362" y="245" width="46" height="46" rx="5" fill="#D4B83E" opacity="0.82"/>
+    <rect x="412" y="245" width="46" height="46" rx="5" fill="#D4B83E" opacity="0.75"/>
+
+    <!-- Row 2: left descender -->
+    <rect x="312" y="295" width="46" height="46" rx="5" fill="#A8C444" opacity="0.72"/>
+    <rect x="362" y="295" width="46" height="46" rx="5" fill="#A8C444" opacity="0.65"/>
+
+    <!-- Row 3: left tail -->
+    <rect x="312" y="345" width="46" height="46" rx="5" fill="#8BB84A" opacity="0.6"/>
+
+    <!-- === MIDDLE BAR: green/teal === -->
+    <rect x="362" y="395" width="46" height="46" rx="5" fill="#6DAF55" opacity="0.7"/>
+    <rect x="412" y="395" width="46" height="46" rx="5" fill="#5BB868" opacity="0.82"/>
+    <rect x="462" y="395" width="46" height="46" rx="5" fill="#5BB868" opacity="0.9"/>
+    <rect x="512" y="395" width="46" height="46" rx="5" fill="#4DAD80" opacity="0.88"/>
+    <rect x="562" y="395" width="46" height="46" rx="5" fill="#3DA5A5" opacity="0.8"/>
+
+    <!-- Row 5: right descender from middle -->
+    <rect x="562" y="445" width="46" height="46" rx="5" fill="#3DA5A5" opacity="0.75"/>
+    <rect x="612" y="445" width="46" height="46" rx="5" fill="#3A9DB5" opacity="0.7"/>
+
+    <!-- Row 6: right continues down -->
+    <rect x="612" y="495" width="46" height="46" rx="5" fill="#3A94C0" opacity="0.68"/>
+    <rect x="662" y="495" width="46" height="46" rx="5" fill="#3A8BCA" opacity="0.55"/>
+
+    <!-- Row 7: right tail -->
+    <rect x="662" y="545" width="46" height="46" rx="5" fill="#4080CC" opacity="0.5"/>
+
+    <!-- === BOTTOM BAR: blue === -->
+    <rect x="362" y="595" width="46" height="46" rx="5" fill="#4577D9" opacity="0.8"/>
+    <rect x="412" y="595" width="46" height="46" rx="5" fill="#4577D9" opacity="0.88"/>
+    <rect x="462" y="595" width="46" height="46" rx="5" fill="#4577D9" opacity="0.92"/>
+    <rect x="512" y="595" width="46" height="46" rx="5" fill="#4577D9" opacity="0.9"/>
+    <rect x="562" y="595" width="46" height="46" rx="5" fill="#4A7DD5" opacity="0.82"/>
+
+    <!-- Bottom right return -->
+    <rect x="562" y="545" width="46" height="46" rx="5" fill="#4577D9" opacity="0.72"/>
+    <rect x="612" y="545" width="46" height="46" rx="5" fill="#4080CC" opacity="0.6"/>
+
+    <!-- === FRAGMENTS: drifting off edges === -->
+
+    <!-- Top-right fragments (gold) -->
+    <rect x="668" y="200" width="36" height="36" rx="4" fill="#E8C840" opacity="0.35"/>
+    <rect x="710" y="215" width="26" height="26" rx="3" fill="#E8C840" opacity="0.18"/>
+    <rect x="665" y="165" width="22" height="22" rx="3" fill="#D4B83E" opacity="0.15"/>
+
+    <!-- Top-left fragment (yellow-green) -->
+    <rect x="260" y="235" width="36" height="36" rx="4" fill="#A8C444" opacity="0.3"/>
+    <rect x="222" y="218" width="22" height="22" rx="3" fill="#A8C444" opacity="0.14"/>
+
+    <!-- Left fragment (green) -->
+    <rect x="260" y="350" width="32" height="32" rx="4" fill="#5BB868" opacity="0.22"/>
+    <rect x="230" y="380" width="20" height="20" rx="3" fill="#5BB868" opacity="0.12"/>
+
+    <!-- Right-middle fragment (teal) -->
+    <rect x="715" y="455" width="36" height="36" rx="4" fill="#3DA5A5" opacity="0.28"/>
+    <rect x="755" y="475" width="22" height="22" rx="3" fill="#3DA5A5" opacity="0.14"/>
+
+    <!-- Right fragment (teal-blue) -->
+    <rect x="715" y="535" width="28" height="28" rx="3" fill="#3A94C0" opacity="0.2"/>
+
+    <!-- Bottom-left fragments (blue) -->
+    <rect x="310" y="600" width="36" height="36" rx="4" fill="#4577D9" opacity="0.35"/>
+    <rect x="268" y="615" width="26" height="26" rx="3" fill="#4577D9" opacity="0.18"/>
+    <rect x="310" y="645" width="22" height="22" rx="3" fill="#4A7DD5" opacity="0.14"/>
+
+    <!-- === MICRO PARTICLES === -->
+    <rect x="740" y="190" width="14" height="14" rx="2" fill="#E8C840" opacity="0.1"/>
+    <rect x="200" y="260" width="14" height="14" rx="2" fill="#A8C444" opacity="0.08"/>
+    <rect x="210" y="400" width="14" height="14" rx="2" fill="#5BB868" opacity="0.08"/>
+    <rect x="775" y="500" width="14" height="14" rx="2" fill="#3DA5A5" opacity="0.08"/>
+    <rect x="245" y="640" width="14" height="14" rx="2" fill="#4577D9" opacity="0.1"/>
+    <rect x="680" y="160" width="12" height="12" rx="2" fill="#D4B83E" opacity="0.08"/>
+    <rect x="780" y="460" width="12" height="12" rx="2" fill="#3DA5A5" opacity="0.06"/>
+  </g>
+</svg>

@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background gradient -->
+    <radialGradient id="bg" cx="50%" cy="45%" r="65%">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#0a0a12"/>
+    </radialGradient>
+
+    <!-- Heat gradient: blue to gold -->
+    <linearGradient id="heat" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4577D9"/>
+      <stop offset="30%" stop-color="#5B9BD5"/>
+      <stop offset="60%" stop-color="#C4A643"/>
+      <stop offset="100%" stop-color="#E8C840"/>
+    </linearGradient>
+
+    <!-- Vertical variant -->
+    <linearGradient id="heatV" x1="50%" y1="100%" x2="50%" y2="0%">
+      <stop offset="0%" stop-color="#4577D9"/>
+      <stop offset="50%" stop-color="#7BA8B8"/>
+      <stop offset="100%" stop-color="#E8C840"/>
+    </linearGradient>
+
+    <!-- Glow -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="8" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <filter id="outerGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="16"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+
+  <!-- Ambient glow from the tile cluster -->
+  <g filter="url(#outerGlow)" opacity="0.3">
+    <rect x="350" y="280" width="324" height="464" rx="20" fill="url(#heatV)"/>
+  </g>
+
+  <!-- Tile paths: interconnected grid cells forming an organic tangle -->
+  <g filter="url(#glow)">
+    <!-- Cell size: ~52px with 4px gaps -->
+    <!-- Main vertical spine -->
+    <rect x="486" y="200" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.45"/>
+    <rect x="486" y="256" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.55"/>
+    <rect x="486" y="312" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.65"/>
+    <rect x="486" y="368" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.75"/>
+    <rect x="486" y="424" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.85"/>
+    <rect x="486" y="480" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.9"/>
+    <rect x="486" y="536" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.85"/>
+    <rect x="486" y="592" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.75"/>
+    <rect x="486" y="648" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.6"/>
+    <rect x="486" y="704" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.45"/>
+
+    <!-- Branch left from middle -->
+    <rect x="430" y="424" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.8"/>
+    <rect x="374" y="424" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.7"/>
+    <rect x="318" y="424" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.55"/>
+    <rect x="262" y="424" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.4"/>
+
+    <!-- Branch left drops down -->
+    <rect x="374" y="480" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.6"/>
+    <rect x="374" y="536" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.5"/>
+    <rect x="374" y="592" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.35"/>
+
+    <!-- Branch right from upper -->
+    <rect x="542" y="312" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.6"/>
+    <rect x="598" y="312" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.5"/>
+    <rect x="654" y="312" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.4"/>
+
+    <!-- Right branch drops down -->
+    <rect x="598" y="368" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.55"/>
+    <rect x="598" y="424" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.5"/>
+
+    <!-- Branch right from lower -->
+    <rect x="542" y="592" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.65"/>
+    <rect x="598" y="592" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.5"/>
+    <rect x="598" y="648" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.4"/>
+
+    <!-- Top left spur -->
+    <rect x="430" y="256" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.45"/>
+    <rect x="430" y="312" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.5"/>
+    <rect x="374" y="312" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.35"/>
+
+    <!-- Bottom left spur -->
+    <rect x="430" y="648" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.5"/>
+    <rect x="430" y="704" width="52" height="52" rx="6" fill="url(#heat)" opacity="0.35"/>
+
+    <!-- Disconnected fragments (recently revealed, drifting away) -->
+    <rect x="206" y="400" width="42" height="42" rx="5" fill="url(#heat)" opacity="0.2"/>
+    <rect x="710" y="290" width="42" height="42" rx="5" fill="url(#heat)" opacity="0.2"/>
+    <rect x="318" y="592" width="42" height="42" rx="5" fill="url(#heat)" opacity="0.18"/>
+    <rect x="654" y="648" width="42" height="42" rx="5" fill="url(#heat)" opacity="0.18"/>
+    <rect x="486" y="148" width="42" height="42" rx="5" fill="url(#heat)" opacity="0.15"/>
+    <rect x="486" y="764" width="42" height="42" rx="5" fill="url(#heat)" opacity="0.15"/>
+
+    <!-- Tiny scattered cells (particles) -->
+    <rect x="240" y="368" width="28" height="28" rx="4" fill="#4577D9" opacity="0.12"/>
+    <rect x="738" y="340" width="28" height="28" rx="4" fill="#E8C840" opacity="0.12"/>
+    <rect x="318" y="648" width="28" height="28" rx="4" fill="#5B9BD5" opacity="0.1"/>
+    <rect x="668" y="700" width="28" height="28" rx="4" fill="#C4A643" opacity="0.1"/>
+    <rect x="542" y="148" width="28" height="28" rx="4" fill="#C4A643" opacity="0.1"/>
+    <rect x="374" y="200" width="28" height="28" rx="4" fill="#5B9BD5" opacity="0.08"/>
+  </g>
+</svg>

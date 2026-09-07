@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background: dark radial -->
+    <radialGradient id="bg" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#08080f"/>
+    </radialGradient>
+
+    <!-- Full heat gradient: blue → teal → green → yellow-green → gold -->
+    <linearGradient id="heat" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4577D9"/>
+      <stop offset="25%" stop-color="#3DA5A5"/>
+      <stop offset="50%" stop-color="#5BB868"/>
+      <stop offset="75%" stop-color="#A8C444"/>
+      <stop offset="100%" stop-color="#E8C840"/>
+    </linearGradient>
+
+    <!-- Glow filter -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="10" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <!-- Ambient glow -->
+    <filter id="outerGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="22"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+
+  <!-- Ambient glow -->
+  <g filter="url(#outerGlow)" opacity="0.35">
+    <path d="M610,270 C650,260 685,275 690,320
+             C695,365 640,380 560,392
+             C480,404 405,410 360,448
+             C315,486 325,535 380,555
+             C435,575 525,562 570,575
+             C615,588 645,612 642,660
+             C639,708 590,745 520,755
+             C450,765 385,752 345,732"
+          stroke="url(#heat)" stroke-width="60" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- Main S: blocky/chunky stroke, but wormy path -->
+  <g filter="url(#glow)">
+    <path d="M610,270 C650,260 685,275 690,320
+             C695,365 640,380 560,392
+             C480,404 405,410 360,448
+             C315,486 325,535 380,555
+             C435,575 525,562 570,575
+             C615,588 645,612 642,660
+             C639,708 590,745 520,755
+             C450,765 385,752 345,732"
+          stroke="url(#heat)" stroke-width="44" fill="none"
+          stroke-linecap="square" stroke-linejoin="miter"/>
+
+    <!-- Top fragments: blocky little bits breaking off -->
+    <rect x="700" y="260" width="18" height="18" rx="2" fill="#3DA5A5" opacity="0.6" transform="rotate(15 709 269)"/>
+    <rect x="722" y="285" width="14" height="14" rx="2" fill="#5BB868" opacity="0.45" transform="rotate(-10 729 292)"/>
+    <rect x="695" y="235" width="12" height="12" rx="2" fill="#4577D9" opacity="0.4" transform="rotate(25 701 241)"/>
+    <rect x="740" y="305" width="10" height="10" rx="1" fill="#A8C444" opacity="0.3"/>
+    <rect x="720" y="248" width="8" height="8" rx="1" fill="#E8C840" opacity="0.35"/>
+
+    <!-- Top connecting wisps -->
+    <line x1="692" y1="298" x2="712" y2="272" stroke="#3DA5A5" stroke-width="6" stroke-linecap="square" opacity="0.5"/>
+    <line x1="688" y1="278" x2="705" y2="248" stroke="#4577D9" stroke-width="5" stroke-linecap="square" opacity="0.35"/>
+
+    <!-- Bottom fragments -->
+    <rect x="318" y="748" width="18" height="18" rx="2" fill="#5BB868" opacity="0.6" transform="rotate(-20 327 757)"/>
+    <rect x="295" y="725" width="14" height="14" rx="2" fill="#4577D9" opacity="0.45" transform="rotate(12 302 732)"/>
+    <rect x="330" y="775" width="12" height="12" rx="2" fill="#3DA5A5" opacity="0.4" transform="rotate(-8 336 781)"/>
+    <rect x="275" y="748" width="10" height="10" rx="1" fill="#4577D9" opacity="0.3"/>
+    <rect x="310" y="790" width="8" height="8" rx="1" fill="#5BB868" opacity="0.25"/>
+
+    <!-- Bottom connecting wisps -->
+    <line x1="342" y1="738" x2="325" y2="756" stroke="#5BB868" stroke-width="6" stroke-linecap="square" opacity="0.5"/>
+    <line x1="348" y1="728" x2="308" y2="738" stroke="#4577D9" stroke-width="5" stroke-linecap="square" opacity="0.35"/>
+
+    <!-- Mid fragments: little cells splitting off the curves -->
+    <rect x="302" y="418" width="14" height="14" rx="2" fill="#4577D9" opacity="0.3" transform="rotate(30 309 425)"/>
+    <rect x="655" y="625" width="14" height="14" rx="2" fill="#A8C444" opacity="0.3" transform="rotate(-15 662 632)"/>
+    <rect x="290" y="460" width="10" height="10" rx="1" fill="#3DA5A5" opacity="0.2"/>
+    <rect x="665" y="600" width="10" height="10" rx="1" fill="#E8C840" opacity="0.2"/>
+
+    <!-- Scattered micro particles -->
+    <rect x="750" y="275" width="6" height="6" rx="1" fill="#E8C840" opacity="0.5"/>
+    <rect x="760" y="320" width="5" height="5" rx="1" fill="#A8C444" opacity="0.35"/>
+    <rect x="265" y="760" width="6" height="6" rx="1" fill="#4577D9" opacity="0.5"/>
+    <rect x="255" y="730" width="5" height="5" rx="1" fill="#3DA5A5" opacity="0.35"/>
+    <rect x="280" y="440" width="5" height="5" rx="1" fill="#5BB868" opacity="0.2"/>
+    <rect x="678" y="650" width="5" height="5" rx="1" fill="#E8C840" opacity="0.2"/>
+    <rect x="735" y="250" width="4" height="4" rx="1" fill="#5BB868" opacity="0.3"/>
+    <rect x="270" y="780" width="4" height="4" rx="1" fill="#3DA5A5" opacity="0.3"/>
+  </g>
+</svg>

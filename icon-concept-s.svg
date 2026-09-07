@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <!-- Background gradient: dark to darker -->
+    <radialGradient id="bg" cx="50%" cy="40%" r="70%">
+      <stop offset="0%" stop-color="#1a1a2e"/>
+      <stop offset="100%" stop-color="#0a0a12"/>
+    </radialGradient>
+
+    <!-- Main gradient: blue (210°) to gold (50°) -->
+    <linearGradient id="heat" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#4577D9"/>
+      <stop offset="35%" stop-color="#5B9BD5"/>
+      <stop offset="65%" stop-color="#C4A643"/>
+      <stop offset="100%" stop-color="#E8C840"/>
+    </linearGradient>
+
+    <!-- Glow filter: soft, organic -->
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <!-- Outer glow only -->
+    <filter id="outerGlow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="20"/>
+    </filter>
+
+    <!-- Subtle inner glow -->
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="6"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+
+  <!-- Outer glow layer (the ambient light the S casts) -->
+  <g filter="url(#outerGlow)" opacity="0.4">
+    <!-- S main spine -->
+    <path d="M620,260 C620,260 680,250 690,310 C700,370 620,380 540,390
+             C460,400 380,400 340,440 C300,480 310,530 370,550
+             C430,570 520,560 560,570 C600,580 640,600 640,650
+             C640,700 590,740 520,750 C450,760 380,750 340,730"
+          stroke="url(#heat)" stroke-width="48" fill="none" stroke-linecap="round"/>
+  </g>
+
+  <!-- Main S path: organic, imperfect -->
+  <g filter="url(#glow)">
+    <!-- Core S shape - slightly wobbly, not geometric -->
+    <path d="M615,265 C635,258 672,252 685,308
+             C698,364 628,378 548,388
+             C468,398 392,402 348,438
+             C304,474 312,528 368,548
+             C424,568 516,558 558,568
+             C600,578 636,598 636,648
+             C636,698 588,738 518,748
+             C448,758 382,748 345,728"
+          stroke="url(#heat)" stroke-width="36" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Organic fragments splitting off the top -->
+    <line x1="680" y1="290" x2="710" y2="260" stroke="url(#heat)" stroke-width="8" stroke-linecap="round" opacity="0.7"/>
+    <line x1="695" y1="320" x2="730" y2="305" stroke="url(#heat)" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+    <line x1="670" y1="270" x2="700" y2="235" stroke="url(#heat)" stroke-width="5" stroke-linecap="round" opacity="0.4"/>
+    <circle cx="718" cy="252" r="4" fill="url(#heat)" opacity="0.5"/>
+    <circle cx="740" cy="300" r="3" fill="url(#heat)" opacity="0.35"/>
+
+    <!-- Fragments splitting off the bottom -->
+    <line x1="350" y1="735" x2="320" y2="760" stroke="url(#heat)" stroke-width="8" stroke-linecap="round" opacity="0.7"/>
+    <line x1="365" y1="745" x2="340" y2="775" stroke="url(#heat)" stroke-width="5" stroke-linecap="round" opacity="0.4"/>
+    <line x1="338" y1="720" x2="305" y2="740" stroke="url(#heat)" stroke-width="6" stroke-linecap="round" opacity="0.5"/>
+    <circle cx="312" cy="768" r="4" fill="url(#heat)" opacity="0.5"/>
+    <circle cx="296" cy="745" r="3" fill="url(#heat)" opacity="0.35"/>
+
+    <!-- Mid-section organic wisps -->
+    <line x1="340" y1="445" x2="310" y2="420" stroke="url(#heat)" stroke-width="5" stroke-linecap="round" opacity="0.35"/>
+    <line x1="640" y1="640" x2="670" y2="620" stroke="url(#heat)" stroke-width="5" stroke-linecap="round" opacity="0.35"/>
+    <circle cx="302" cy="415" r="3" fill="url(#heat)" opacity="0.3"/>
+    <circle cx="678" cy="615" r="3" fill="url(#heat)" opacity="0.3"/>
+
+    <!-- Tiny floating particles -->
+    <circle cx="740" cy="270" r="2.5" fill="#E8C840" opacity="0.6"/>
+    <circle cx="755" cy="310" r="2" fill="#C4A643" opacity="0.4"/>
+    <circle cx="290" cy="750" r="2.5" fill="#4577D9" opacity="0.6"/>
+    <circle cx="275" cy="720" r="2" fill="#5B9BD5" opacity="0.4"/>
+    <circle cx="330" y1="400" cy="400" r="2" fill="#5B9BD5" opacity="0.3"/>
+    <circle cx="660" cy="660" r="2" fill="#C4A643" opacity="0.3"/>
+  </g>
+</svg>
